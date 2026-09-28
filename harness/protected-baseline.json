@@ -1,0 +1,29 @@
+﻿{
+    "schemaVersion":  1,
+    "generatedAtUtc":  "2026-09-26T11:26:37.5068425Z",
+    "reason":  "Requested BuildAI 7.4 version validation accepts two-part product version",
+    "algorithm":  "SHA256",
+    "files":  {
+                  "src/BuildAI.Core/APS/ApsPublicationClient.cs":  "89ea7deaedfea13d050c8e840e3740199d9ca1a6665935dfa4d11dc85fe51c47",
+                  "src/BuildAI.Core/APS/ApsObjectResolver.cs":  "958b2b65221447fcf3995d32816ac866dceb1e8d23013543f1077544be807540",
+                  "src/BuildAI.Core/Issues/PushpinFrame.cs":  "f0fc90c7e17a35ccba884610d2d09cbc6d20e4cd05cf6a90c509642599202f13",
+                  "src/Plugin4.LinkComparatorAI/Issues/ComparatorIssueWorkflow.cs":  "3c19c37e7fd3c284c6a1c84556cf12e47a2f98a626d29a5f17ea6c4baf210a6b",
+                  "src/Plugin4.LinkComparatorAI/Revit/ComparatorActionHandler.cs":  "467031816a1fbbfd9bc5686a64e475a1a173fa4599c14a1cdb663828db2c980b",
+                  "src/Plugin5.ClashFormaIntegration/Issues/ClashIssueWorkflow.cs":  "ea86c5212d347990ab8a0495eefeca11c67298c61c464fc4cd6edbb766822379",
+                  "src/Plugin5.ClashFormaIntegration/Publishing/ApsPublisher.cs":  "49cdeef1cbc73e334c68b5484a501caf87b32b12e0786ca1892e3ed034e35cec",
+                  "src/Plugin5.ClashFormaIntegration/Revit/ModelActionHandler.cs":  "549c46178a2c7c511a6c3fe5e4a05be16ce22f13ab268313f52f489fac7f6b1e",
+                  "src/ViewerProbe.Shared/viewer-probe.html":  "493e8660dfbedd25021067f5be38eb36cb0e1386ddc067ddf281d447d81cd055",
+                  "src/ViewerProbe.Shared/buildai-anchor-probe.js":  "e45c03a471c0b9ca35b7dccc97d006e7b26ec3c9ba3c29bc43fbb6fb929c98e1",
+                  "tools/Test-NativeApsPublication.ps1":  "2aee79f6140e319a6b6cfe6edc80ea8a399f93bf03f14e8cae977f892a4953de",
+                  "tools/Test-ApsViewableIdentity.ps1":  "aed205dffa20195cb7db836127c2c0fb7a339f9786edf4d545744c08f025bde0",
+                  "tools/Test-ApsObjectIdentity.ps1":  "9090ec2d0694f66967b7a560a470b037435abc22d99657d6f00a6fd13136c3a8",
+                  "tools/Test-ViewerCoordinateProbe.ps1":  "be1c064920ba18080dd3f8d15bc74859916686c6041663d630fab1c065cc6f9d",
+                  "tools/Test-AnchorProbe.ps1":  "e2109445c19ef2042ef7ae6f2c713ed2a0c643c6dc26105fa188f2ce8541b99e",
+                  "tools/Test-CameraFocusContract.ps1":  "1fa0be5679808df252eda9f5c8df1f83b3bf4d1ea5cbedfe864f35dbb650495b",
+                  "tools/Test-IssueNavigator.ps1":  "66ace61f008125442ab36e4604f34db717c47915e79610976a2bbdad2c57a995",
+                  "tools/Test-SurfaceAwareArStPushpins.ps1":  "5dd6e234e34bb09a558b757123c4b48b0ade31c4605494838062a007b8b4ed6b",
+                  "tools/Test-HighlightAndCompactLlmLog.ps1":  "6da292152301605992799873931e3277fa35f891e7d73463d88b039f199768a9",
+                  "tools/Test-Version7_0_21.ps1":  "5fe795b5fedbd91300774603fc59135222b7ed2f4aff157103d55ebf591ba1aa",
+                  "tools/Test-Version7_1_0.ps1":  "23620cbc3037d1d41ce4d02204e8e147e84e64bccd01024970a2069621b4d067"
+              }
+}

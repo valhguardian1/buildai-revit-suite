@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+<g stroke="#2B2F36">
+<path d="M4.5 9.5 H11 A2.5 2.5 0 0 0 11.5 4.55 A3.6 3.6 0 0 0 4.4 4.6 A2.45 2.45 0 0 0 4.5 9.5 Z" stroke-width="3"/>
+</g>
+<path d="M4.5 9.5 H11 A2.5 2.5 0 0 0 11.5 4.55 A3.6 3.6 0 0 0 4.4 4.6 A2.45 2.45 0 0 0 4.5 9.5 Z" stroke="#FFFFFF" stroke-width="1"/>
+<g stroke="#2B2F36">
+<path d="M11.5 8.5 V12.5 H5.5" stroke-width="3"/>
+<polyline points="7.5,10.5 5.5,12.5 7.5,14.5" stroke-width="3"/>
+</g>
+<path d="M11.5 8.5 V12.5 H5.5" stroke="#3186F6" stroke-width="1"/>
+<polyline points="7.5,10.5 5.5,12.5 7.5,14.5" stroke="#3186F6" stroke-width="1"/>
+</svg>

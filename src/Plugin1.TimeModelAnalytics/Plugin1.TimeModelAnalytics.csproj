@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>BuildAI.Plugin1.TimeModelAnalytics</AssemblyName>
+    <RootNamespace>Plugin1.TimeModelAnalytics</RootNamespace>
+    <!-- TargetFramework / RevitVersion come from Directory.Build.props per config. -->
+    <!-- Ship transitive deps (Newtonsoft.Json) next to the DLL. On net8 libraries
+         don't copy NuGet deps by default; the plugin is host-loaded, so it must. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BuildAI.Core\BuildAI.Core.csproj" />
+    <Compile Include="..\RevitCompat.Shared\CategoryNaming.cs" Link="Compatibility\CategoryNaming.cs" />
+  </ItemGroup>
+
+  <!--
+    .NET Framework 4.8 (Revit 2023/2024) does not auto-reference System.Net.Http,
+    but the Core transport constructor exposes HttpClient. Add it for net48 only;
+    on net8 it is built in.
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <!--
+    Revit API references via the community NuGet packages, version-matched to
+    $(RevitVersion). ExcludeAssets="runtime" = compile against them but do NOT
+    copy the Revit-owned DLLs to output (Revit loads its own). Needed because
+    CopyLocalLockFileAssemblies would otherwise drag them in.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- Ship the .addin next to the DLL; copy icons to the output. -->
+  <ItemGroup>
+    <None Include="Plugin1.addin" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Resources\icons\**\*.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

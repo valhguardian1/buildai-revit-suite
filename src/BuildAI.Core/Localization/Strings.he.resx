@@ -1,0 +1,413 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Ribbon_Tab" xml:space="preserve">
+    <value>BuildAI</value>
+  </data>
+  <data name="Ribbon_Panel_Analytics" xml:space="preserve">
+    <value>אנליטיקה</value>
+  </data>
+  <data name="Btn_Connect" xml:space="preserve">
+    <value>התחברות</value>
+  </data>
+  <data name="Btn_Pause" xml:space="preserve">
+    <value>השהיה</value>
+  </data>
+  <data name="Btn_Resume" xml:space="preserve">
+    <value>המשך</value>
+  </data>
+  <data name="Btn_Status" xml:space="preserve">
+    <value>סשן</value>
+  </data>
+  <data name="Status_Connected" xml:space="preserve">
+    <value>מחובר</value>
+  </data>
+  <data name="Status_Disconnected" xml:space="preserve">
+    <value>לא מחובר</value>
+  </data>
+  <data name="Status_Paused" xml:space="preserve">
+    <value>מושהה</value>
+  </data>
+  <data name="Status_ActiveTime" xml:space="preserve">
+    <value>זמן פעיל</value>
+  </data>
+  <data name="Status_EventsSent" xml:space="preserve">
+    <value>אירועים שנשלחו</value>
+  </data>
+  <data name="Status_Pending" xml:space="preserve">
+    <value>ממתין (לא מקוון)</value>
+  </data>
+  <data name="Token_Prompt" xml:space="preserve">
+    <value>הזן את אסימון ה-API של BuildAI</value>
+  </data>
+  <data name="Token_Saved" xml:space="preserve">
+    <value>האסימון נשמר באופן מאובטח.</value>
+  </data>
+  <data name="Token_Missing" xml:space="preserve">
+    <value>לא הוגדר אסימון BuildAI. לחץ על התחברות כדי להזין אותו.</value>
+  </data>
+  <data name="Ribbon_Panel_Volumes" xml:space="preserve">
+    <value>נפחים</value>
+  </data>
+  <data name="Btn_Calculate" xml:space="preserve">
+    <value>חישוב מחדש</value>
+  </data>
+  <data name="Btn_OpenBuildAI" xml:space="preserve">
+    <value>פתח ב-BuildAI</value>
+  </data>
+  <data name="Vol_ResultsTitle" xml:space="preserve">
+    <value>אומדן נפחים</value>
+  </data>
+  <data name="Vol_ColCategory" xml:space="preserve">
+    <value>קטגוריה</value>
+  </data>
+  <data name="Vol_ColVolume" xml:space="preserve">
+    <value>נפח (מ״ק)</value>
+  </data>
+  <data name="Vol_ColCount" xml:space="preserve">
+    <value>כמות</value>
+  </data>
+  <data name="Vol_Elements" xml:space="preserve">
+    <value>אלמנטים שנסרקו</value>
+  </data>
+  <data name="Vol_Counted" xml:space="preserve">
+    <value>נספרו</value>
+  </data>
+  <data name="Vol_Sources" xml:space="preserve">
+    <value>מודלים</value>
+  </data>
+  <data name="Vol_DupWarning" xml:space="preserve">
+    <value>⚠ לא ניתן היה לקבוע את הדיסציפלינה של חלק מהמודלים — הנפחים שלהם נספרים כפי שהם, ולכן ייתכן שכפילויות בין AR/ST לא הוסרו. הגדר עקיפת דיסציפלינה בקונפיג או שנה את שמות קובצי הקישור.</value>
+  </data>
+  <data name="Vol_Rows" xml:space="preserve">
+    <value>קבוצות</value>
+  </data>
+  <data name="Vol_Sent" xml:space="preserve">
+    <value>נשלח ל-BuildAI</value>
+  </data>
+  <data name="Vol_NoDoc" xml:space="preserve">
+    <value>יש לפתוח פרויקט תחילה.</value>
+  </data>
+  <data name="Vol_PublishUploading" xml:space="preserve">
+    <value>תצוגת Revit נשלחת ל-BuildAI יחד עם החישוב מחדש של החומרים...</value>
+  </data>
+  <data name="Vol_PublishReady" xml:space="preserve">
+    <value>קישור למציג של BuildAI:</value>
+  </data>
+  <data name="Vol_PublishWait10" xml:space="preserve">
+    <value>לאחר ההעלאה, העיבוד עשוי להימשך עד 10 דקות לפני שהתצוגה תוצג כראוי ב-BuildAI.</value>
+  </data>
+  <data name="Vol_PublishFailed" xml:space="preserve">
+    <value>חישוב החומרים הושלם, אך לא ניתן היה לשלוח את תצוגת Revit ל-BuildAI.</value>
+  </data>
+  <data name="Ribbon_Panel_LinkMonitor" xml:space="preserve">
+    <value>מעקב קישורים</value>
+  </data>
+  <data name="Btn_CheckLinks" xml:space="preserve">
+    <value>בדיקת קישורים</value>
+  </data>
+  <data name="Btn_Changes" xml:space="preserve">
+    <value>שינויים</value>
+  </data>
+  <data name="P3_Title" xml:space="preserve">
+    <value>שינויים במודלים מקושרים</value>
+  </data>
+  <data name="P3_Status" xml:space="preserve">
+    <value>מצב</value>
+  </data>
+  <data name="P3_All" xml:space="preserve">
+    <value>כל השינויים</value>
+  </data>
+  <data name="P3_Added" xml:space="preserve">
+    <value>נוסף</value>
+  </data>
+  <data name="P3_Modified" xml:space="preserve">
+    <value>שונה</value>
+  </data>
+  <data name="P3_Deleted" xml:space="preserve">
+    <value>נמחק</value>
+  </data>
+  <data name="P3_Search" xml:space="preserve">
+    <value>חיפוש</value>
+  </data>
+  <data name="P3_Highlight" xml:space="preserve">
+    <value>הדגשה</value>
+  </data>
+  <data name="P3_Reset" xml:space="preserve">
+    <value>איפוס בחירה</value>
+  </data>
+  <data name="P3_Export" xml:space="preserve">
+    <value>יצוא ל-Excel</value>
+  </data>
+  <data name="Ribbon_Panel_Comparator" xml:space="preserve">
+    <value>השוואת קישורים ו-AI</value>
+  </data>
+  <data name="Btn_Compare" xml:space="preserve">
+    <value>השוואה
+AR / ST</value>
+  </data>
+  <data name="Btn_Rooms" xml:space="preserve">
+    <value>גבהי
+חדרים</value>
+  </data>
+  <data name="Btn_Results" xml:space="preserve">
+    <value>תוצאות</value>
+  </data>
+  <data name="Btn_Settings" xml:space="preserve">
+    <value>הגדרות</value>
+  </data>
+  <data name="P4_Title" xml:space="preserve">
+    <value>בדיקת התאמה AR / ST</value>
+  </data>
+  <data name="P4_Critical" xml:space="preserve">
+    <value>קריטי</value>
+  </data>
+  <data name="P4_Important" xml:space="preserve">
+    <value>חשוב</value>
+  </data>
+  <data name="P4_Minor" xml:space="preserve">
+    <value>קל</value>
+  </data>
+  <data name="P4_Severity" xml:space="preserve">
+    <value>חומרה</value>
+  </data>
+  <data name="P4_CheckType" xml:space="preserve">
+    <value>סוג בדיקה</value>
+  </data>
+  <data name="P4_Level" xml:space="preserve">
+    <value>מפלס</value>
+  </data>
+  <data name="P4_Category" xml:space="preserve">
+    <value>קטגוריה</value>
+  </data>
+  <data name="P4_Issue" xml:space="preserve">
+    <value>אי התאמה</value>
+  </data>
+  <data name="P4_Description" xml:space="preserve">
+    <value>תיאור</value>
+  </data>
+  <data name="P4_Recommendation" xml:space="preserve">
+    <value>המלצה</value>
+  </data>
+  <data name="P4_AiResult" xml:space="preserve">
+    <value>תוצאת AI</value>
+  </data>
+  <data name="P4_Search" xml:space="preserve">
+    <value>חיפוש</value>
+  </data>
+  <data name="P4_All" xml:space="preserve">
+    <value>הכל</value>
+  </data>
+  <data name="P4_Highlight" xml:space="preserve">
+    <value>הדגשה</value>
+  </data>
+  <data name="P4_Reset" xml:space="preserve">
+    <value>איפוס</value>
+  </data>
+  <data name="P4_RunAi" xml:space="preserve">
+    <value>הפעלת AI</value>
+  </data>
+  <data name="P4_Export" xml:space="preserve">
+    <value>יצוא CSV</value>
+  </data>
+  <data name="P4_Ready" xml:space="preserve">
+    <value>מוכן</value>
+  </data>
+  <data name="P4_Comparing" xml:space="preserve">
+    <value>מתבצעת השוואה...</value>
+  </data>
+  <data name="P4_AiRunning" xml:space="preserve">
+    <value>AI פועל...</value>
+  </data>
+  <data name="P4_AiCompleted" xml:space="preserve">
+    <value>ניתוח AI הושלם.</value>
+  </data>
+  <data name="P4_Saved" xml:space="preserve">
+    <value>הדוח נשמר.</value>
+  </data>
+  <data name="P4_NotFound" xml:space="preserve">
+    <value>לא ניתן לאתר את האלמנט.</value>
+  </data>
+  <data name="P4_Language" xml:space="preserve">
+    <value>שפה</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>שמירה</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>ביטול</value>
+  </data>
+  <data name="Ribbon_Panel_Clash" xml:space="preserve">
+    <value>התנגשויות ו-Forma</value>
+  </data>
+  <data name="Btn_FindClashes" xml:space="preserve">
+    <value>איתור
+התנגשויות</value>
+  </data>
+  <data name="Btn_CreateViews" xml:space="preserve">
+    <value>יצירת
+מבטים</value>
+  </data>
+  <data name="Btn_PublishBuildAI" xml:space="preserve">
+    <value>פרסום
+BuildAI</value>
+  </data>
+  <data name="P5_ResultsTitle" xml:space="preserve">
+    <value>התנגשויות</value>
+  </data>
+  <data name="P5_SettingsTitle" xml:space="preserve">
+    <value>הגדרות BuildAI</value>
+  </data>
+  <data name="P5_Clearance" xml:space="preserve">
+    <value>מרווח התנגשות, מ״מ</value>
+  </data>
+  <data name="P5_Token" xml:space="preserve">
+    <value>אסימון Bearer</value>
+  </data>
+  <data name="P5_DeleteToken" xml:space="preserve">
+    <value>מחיקת אסימון</value>
+  </data>
+  <data name="P5_PublishTitle" xml:space="preserve">
+    <value>פרסום מודל ל-BuildAI</value>
+  </data>
+  <data name="P5_Publish" xml:space="preserve">
+    <value>פרסום</value>
+  </data>
+  <data name="Issue_Title_ArSt" xml:space="preserve">
+    <value>{0} ב{1} אינו תואם ל{2} ב{3}.</value>
+  </data>
+  <data name="Issue_Title_NoStructural" xml:space="preserve">
+    <value>ל{0} ב{1} אין אלמנט תואם ב{2}.</value>
+  </data>
+  <data name="Issue_Title_NoArchitectural" xml:space="preserve">
+    <value>ל{0} ב{1} אין אלמנט תואם ב{2}.</value>
+  </data>
+  <data name="Issue_Title_RoomHeight" xml:space="preserve">
+    <value>{0} ב{1} ב{2} מחוץ לטווח הגובה שהוגדר.</value>
+  </data>
+  <data name="Issue_Body_ArSt" xml:space="preserve">
+    <value>מפלס: {0}. סטייה: {1} מ"מ.</value>
+  </data>
+  <data name="Issue_Body_Missing" xml:space="preserve">
+    <value>מפלס: {0}. האלמנט קיים במודל אחד בלבד.</value>
+  </data>
+  <data name="Issue_Body_RoomHeight" xml:space="preserve">
+    <value>מפלס: {0}. סטייה מהטווח המותר: {1} מ"מ.</value>
+  </data>
+  <data name="Issue_LevelUnknown" xml:space="preserve">
+    <value>מפלס לא צוין</value>
+  </data>
+  <data name="Issue_UnknownValue" xml:space="preserve">
+    <value>לא צוין</value>
+  </data>
+  <data name="Discipline_Architecture" xml:space="preserve">
+    <value>המודל האדריכלי</value>
+  </data>
+  <data name="Discipline_Structure" xml:space="preserve">
+    <value>המודל המבני</value>
+  </data>
+  <data name="Btn_Close" xml:space="preserve">
+    <value>סגירה</value>
+  </data>
+  <data name="P5_ColIssueNumber" xml:space="preserve">
+    <value>בעיה</value>
+  </data>
+  <data name="P5_ColIssueNumberTip" xml:space="preserve">
+    <value>מספר הבעיה ב-Autodesk.</value>
+  </data>
+  <data name="Cat_OST_Walls" xml:space="preserve">
+    <value>קירות</value>
+  </data>
+  <data name="Cat_OST_Floors" xml:space="preserve">
+    <value>רצפות</value>
+  </data>
+  <data name="Cat_OST_Roofs" xml:space="preserve">
+    <value>גגות</value>
+  </data>
+  <data name="Cat_OST_Ceilings" xml:space="preserve">
+    <value>תקרות</value>
+  </data>
+  <data name="Cat_OST_StructuralColumns" xml:space="preserve">
+    <value>עמודים מבניים</value>
+  </data>
+  <data name="Cat_OST_Columns" xml:space="preserve">
+    <value>עמודים</value>
+  </data>
+  <data name="Cat_OST_StructuralFraming" xml:space="preserve">
+    <value>קורות</value>
+  </data>
+  <data name="Cat_OST_StructuralFoundation" xml:space="preserve">
+    <value>יסודות</value>
+  </data>
+  <data name="Cat_OST_Doors" xml:space="preserve">
+    <value>דלתות</value>
+  </data>
+  <data name="Cat_OST_Windows" xml:space="preserve">
+    <value>חלונות</value>
+  </data>
+  <data name="Cat_OST_Stairs" xml:space="preserve">
+    <value>מדרגות</value>
+  </data>
+  <data name="Cat_OST_Ramps" xml:space="preserve">
+    <value>ראמפות</value>
+  </data>
+  <data name="Cat_OST_CurtainWallPanels" xml:space="preserve">
+    <value>פאנלי קיר מסך</value>
+  </data>
+  <data name="Cat_OST_Rooms" xml:space="preserve">
+    <value>חדרים</value>
+  </data>
+  <data name="Cat_OST_GenericModel" xml:space="preserve">
+    <value>מודלים כלליים</value>
+  </data>
+  <data name="Cat_OST_DuctCurves" xml:space="preserve">
+    <value>תעלות</value>
+  </data>
+  <data name="Cat_OST_DuctFitting" xml:space="preserve">
+    <value>אביזרי תעלות</value>
+  </data>
+  <data name="Cat_OST_PipeCurves" xml:space="preserve">
+    <value>צינורות</value>
+  </data>
+  <data name="Cat_OST_PipeFitting" xml:space="preserve">
+    <value>אביזרי צנרת</value>
+  </data>
+  <data name="Cat_OST_CableTray" xml:space="preserve">
+    <value>תעלות כבלים</value>
+  </data>
+  <data name="Cat_OST_Conduit" xml:space="preserve">
+    <value>צינורות חשמל</value>
+  </data>
+  <data name="Cat_OST_MechanicalEquipment" xml:space="preserve">
+    <value>ציוד מכני</value>
+  </data>
+  <data name="Cat_OST_ElectricalEquipment" xml:space="preserve">
+    <value>ציוד חשמל</value>
+  </data>
+  <data name="Cat_OST_PlumbingFixtures" xml:space="preserve">
+    <value>קבועות סניטריות</value>
+  </data>
+  <data name="Cat_OST_Sprinklers" xml:space="preserve">
+    <value>מתזים</value>
+  </data>
+  <data name="Cat_OST_StructuralStiffener" xml:space="preserve">
+    <value>מקשיחים</value>
+  </data>
+  <data name="Cat_OST_Parts" xml:space="preserve">
+    <value>חלקים</value>
+  </data>
+  <data name="Vol_AccPublishing" xml:space="preserve"><value>מפרסם את BuildAI Publication ב-ACC. ממתין לזמינות התצוגה התלת-ממדית...</value></data>
+  <data name="Vol_AccReady" xml:space="preserve"><value>BuildAI Publication זמין ב-ACC. ניתן לטעון את התצוגה התלת-ממדית ב-BuildAI מתוך ACC.</value></data>
+  <data name="Vol_AccPreparing" xml:space="preserve"><value>מכין את BuildAI Publication ומסנכרן את מודל הענן...</value></data>
+</root>

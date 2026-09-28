@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>BuildAI.Plugin3.LinkChangeMonitor</AssemblyName>
+    <RootNamespace>Plugin3.LinkChangeMonitor</RootNamespace>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\BuildAI.Core\BuildAI.Core.csproj" />
+    <Compile Include="..\RevitCompat.Shared\CategoryNaming.cs" Link="Compatibility\CategoryNaming.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+  </ItemGroup>
+  <ItemGroup Condition="$(TargetFramework) == 'net48'">
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Plugin3.addin" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Resources\icons\**\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Resources\BuildAI.png" />
+  </ItemGroup>
+</Project>

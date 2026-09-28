@@ -1,0 +1,1950 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    html, body, #viewer { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+  </style>
+  <script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js"></script>
+  <!--
+    Loaded after viewer3D so window.THREE exists when the probe IIFE runs.
+    Served from the same virtual host as this page, so it needs no CORS
+    exception; build.ps1 fails the build if the file is missing from the payload.
+  -->
+  <script src="buildai-anchor-probe.js"></script>
+</head>
+<body>
+<div id="viewer"></div>
+<script>
+(() => {
+  'use strict';
+
+  let viewer = null;
+  let tokenSequence = 0;
+  const tokenCallbacks = new Map();
+  const externalIdMappingCache = new WeakMap();
+
+  const post = message => window.chrome.webview.postMessage(message);
+  const progress = message => post({ type: 'progress', message });
+  const delay = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+  const normalized = value => String(value || '').trim().toLowerCase();
+  // Snap camera placement, in feet. Deliberately local: what has to be visible for
+  // the ray to land is the clash, not the whole element.
+  const SNAP_MIN_DISTANCE_FT = 8;
+  const SNAP_MAX_DISTANCE_FT = 40;
+  const SNAP_MAX_LOCAL_FT = 12;
+  const SNAP_INWARD_NUDGE_FT = 0.05;
+  const SNAP_SAMPLE_SPAN = 0.06;
+
+  const PUSHPIN_SURFACE_OFFSET_FT = 0.25;
+  const CLASH_CAMERA_DISTANCE_FT = 0.70 / 0.3048;
+  const CLASH_CAMERA_MIN_DISTANCE_FT = 0.60 / 0.3048;
+  const CLASH_CAMERA_MAX_DISTANCE_FT = 0.80 / 0.3048;
+
+  function requestToken(onTokenReady) {
+    const requestId = 'token-' + (++tokenSequence);
+    tokenCallbacks.set(requestId, onTokenReady);
+    post({ type: 'token-request', requestId });
+  }
+
+  window.__deliverToken = (requestId, token, expiresIn) => {
+    const callback = tokenCallbacks.get(requestId);
+    if (!callback) return;
+    tokenCallbacks.delete(requestId);
+    callback(token, expiresIn);
+  };
+
+  function nodeIdentity(node) {
+    const data = node && node.data ? node.data : {};
+    let methodGuid = '';
+    try { methodGuid = node && typeof node.guid === 'function' ? node.guid() : ''; } catch (_) { }
+    return {
+      guid: data.guid || methodGuid || '',
+      viewableId: data.viewableID || data.viewableId || '',
+      name: data.name || ''
+    };
+  }
+
+  function selectExactViewable(apsDocument, request) {
+    const nodes = apsDocument.getRoot().search({ type: 'geometry' }) || [];
+    const requiredGuid = normalized(request.viewableGeometryGuid);
+    const requiredViewableId = normalized(request.viewableId);
+
+    let selected = nodes.find(node => {
+      const identity = nodeIdentity(node);
+      return requiredGuid && normalized(identity.guid) === requiredGuid;
+    });
+    if (!selected) {
+      selected = nodes.find(node => {
+        const identity = nodeIdentity(node);
+        return requiredViewableId && normalized(identity.viewableId) === requiredViewableId;
+      });
+    }
+    if (!selected) {
+      const available = nodes.map(node => nodeIdentity(node));
+      throw new Error('The exact requested viewable was not found. Available: ' + JSON.stringify(available));
+    }
+    return selected;
+  }
+
+  function loadDocument(documentId) {
+    return new Promise((resolve, reject) => {
+      Autodesk.Viewing.Document.load(
+        documentId,
+        resolve,
+        (code, message) => reject(new Error('Document.load failed: ' + code + ' ' + (message || '')))
+      );
+    });
+  }
+
+  async function waitForModelReady(model) {
+    const deadline = Date.now() + 90000;
+    while (Date.now() < deadline) {
+      const tree = model.getInstanceTree && model.getInstanceTree();
+      const fragments = model.getFragmentList && model.getFragmentList();
+      if (tree && fragments) return { tree, fragments };
+      await delay(200);
+    }
+    throw new Error('Timed out waiting for the Viewer object tree and fragment list.');
+  }
+
+  function getExternalIdMapping(model) {
+    return new Promise((resolve, reject) => {
+      model.getExternalIdMapping(resolve, error => reject(new Error('getExternalIdMapping failed: ' + error)));
+    });
+  }
+
+  async function getCachedExternalIdMapping(model) {
+    if (!externalIdMappingCache.has(model))
+      externalIdMappingCache.set(model, getExternalIdMapping(model));
+    return externalIdMappingCache.get(model);
+  }
+
+  function findDbIdCandidates(mapping, request) {
+    const entries = Object.entries(mapping || {});
+    const requested = normalized(request.requestedExternalId);
+    const composite = normalized(request.compositeExternalId);
+    const linkUid = normalized(request.selectedLinkInstanceUid);
+    const modelUid = normalized(request.selectedModelUid);
+    const suffix = requested ? '/' + requested : '';
+    const result = [];
+
+    const add = (dbId, externalId, direction) => {
+      if (!Number.isInteger(dbId) || dbId <= 0) return;
+      const ext = normalized(externalId);
+      if (!ext) return;
+      const exactComposite = composite && ext === composite;
+      const exactRequested = requested && ext === requested;
+      const suffixRequested = suffix && ext.endsWith(suffix);
+      if (!exactComposite && !exactRequested && !suffixRequested) return;
+
+      let score = exactComposite ? 10000 : (exactRequested ? 500 : 400);
+      if (linkUid && (ext.startsWith(linkUid + '/') || ext.includes('/' + linkUid + '/'))) score += 2500;
+      if (modelUid && ext.includes(modelUid)) score += 250;
+      const existing = result.find(item => item.dbId === dbId && normalized(item.externalId) === ext);
+      if (!existing) result.push({ dbId, externalId: String(externalId), direction, score });
+      else if (score > existing.score) existing.score = score;
+    };
+
+    for (const [key, value] of entries) {
+      const numericValue = Number(value);
+      const numericKey = Number(key);
+      add(numericValue, key, 'externalId->dbId');
+      add(numericKey, String(value), 'dbId->externalId');
+    }
+    return result;
+  }
+
+  async function waitForSceneModels(rootModel) {
+    const deadline = Date.now() + 15000;
+    let previousCount = -1;
+    let stableSamples = 0;
+    let models = [rootModel];
+    while (Date.now() < deadline) {
+      const visible = viewer.getVisibleModels ? viewer.getVisibleModels() : null;
+      models = visible && visible.length ? visible : [rootModel];
+      if (models.length === previousCount) stableSamples++;
+      else { previousCount = models.length; stableSamples = 0; }
+      if (stableSamples >= 4) return models;
+      await delay(400);
+    }
+    return models;
+  }
+
+  function nodeDiagnostics(tree, dbId) {
+    let name = '';
+    let parentDbId = 0;
+    let childCount = 0;
+    let nodeBox = null;
+    try { name = tree.getNodeName(dbId) || ''; } catch (_) { }
+    try { parentDbId = Number(tree.getNodeParentId(dbId)) || 0; } catch (_) { }
+    try { tree.enumNodeChildren(dbId, () => childCount++, false); } catch (_) { }
+    try {
+      const values = [0, 0, 0, 0, 0, 0];
+      tree.getNodeBox(dbId, values);
+      if (values.every(Number.isFinite)) nodeBox = values;
+    } catch (_) { }
+    return { name, parentDbId, childCount, nodeBox };
+  }
+
+  async function resolveTargetModel(models, request) {
+    const geometric = [];
+    const inspected = [];
+    const misses = [];
+    for (let index = 0; index < models.length; index++) {
+      const model = models[index];
+      try {
+        const ready = await waitForModelReady(model);
+        const mapping = await getCachedExternalIdMapping(model);
+        const candidates = findDbIdCandidates(mapping, request);
+        for (const candidate of candidates) {
+          const node = nodeDiagnostics(ready.tree, candidate.dbId);
+          const requestedSource = normalized(request.sourceName);
+          if (requestedSource && normalized(node.name).includes(requestedSource)) candidate.score += 50;
+          let geometry = null;
+          let geometryError = '';
+          try { geometry = collectWorldBounds(ready.tree, ready.fragments, candidate.dbId); }
+          catch (error) { geometryError = error && error.message ? error.message : String(error); }
+          const detail = {
+            modelIndex: index,
+            dbId: candidate.dbId,
+            externalId: candidate.externalId,
+            direction: candidate.direction,
+            score: candidate.score,
+            nodeName: node.name,
+            parentDbId: node.parentDbId,
+            childCount: node.childCount,
+            fragmentCount: geometry ? geometry.fragmentIds.length : 0,
+            nodeBox: node.nodeBox,
+            geometryError
+          };
+          inspected.push(detail);
+          if (geometry) geometric.push({ model, ready, resolved: candidate, geometry, index, detail });
+        }
+        if (candidates.length === 0) misses.push('model[' + index + ']: no exact or composite-suffix candidate');
+      } catch (error) {
+        const message = error && error.message ? error.message : String(error);
+        if (message.includes('getExternalIdMapping failed'))
+          misses.push('model[' + index + ']: ' + message);
+        else throw error;
+      }
+    }
+    progress('Viewer candidate diagnostics: ' + JSON.stringify(inspected));
+    if (geometric.length === 0)
+      throw new Error('No geometric Viewer candidate contains the selected externalId. ' + misses.join(' | ') + ' Candidates: ' + JSON.stringify(inspected));
+
+    geometric.sort((a, b) => b.resolved.score - a.resolved.score);
+    const bestScore = geometric[0].resolved.score;
+    const best = geometric.filter(item => item.resolved.score === bestScore);
+    if (best.length > 1)
+      throw new Error('The selected externalId remains ambiguous across ' + best.length + ' equally ranked geometric candidates: ' + JSON.stringify(best.map(x => x.detail)));
+    return best[0];
+  }
+
+  function collectWorldBounds(tree, fragments, dbId) {
+    const fragmentIds = [];
+    tree.enumNodeFragments(dbId, fragmentId => fragmentIds.push(fragmentId), true);
+    const uniqueFragmentIds = [...new Set(fragmentIds)];
+    if (uniqueFragmentIds.length === 0)
+      throw new Error('The runtime dbId has no geometry fragments in the loaded viewable.');
+
+    const bounds = new THREE.Box3();
+    bounds.makeEmpty();
+    for (const fragmentId of uniqueFragmentIds) {
+      const fragmentBounds = new THREE.Box3();
+      fragments.getWorldBounds(fragmentId, fragmentBounds);
+      bounds.union(fragmentBounds);
+    }
+    const values = [bounds.min.x, bounds.min.y, bounds.min.z, bounds.max.x, bounds.max.y, bounds.max.z];
+    if (!values.every(Number.isFinite))
+      throw new Error('Viewer fragment world bounds contain non-finite coordinates.');
+    return { fragmentIds: uniqueFragmentIds, bounds };
+  }
+
+  const MAX_SURFACE_TRIANGLES = 20000;
+
+  function readVertex(geometry, vertexIndex, target) {
+    if (!Number.isInteger(vertexIndex) || vertexIndex < 0) return null;
+    const position = geometry && geometry.attributes ? geometry.attributes.position : null;
+    if (position && typeof position.getX === 'function') {
+      try {
+        target.set(position.getX(vertexIndex), position.getY(vertexIndex), position.getZ(vertexIndex));
+        return [target.x, target.y, target.z].every(Number.isFinite) ? target : null;
+      } catch (_) { return null; }
+    }
+    if (position && position.array) {
+      const itemSize = Number(position.itemSize) || 3;
+      const offset = vertexIndex * itemSize;
+      if (offset < 0 || offset + 2 >= position.array.length) return null;
+      target.set(position.array[offset], position.array[offset + 1], position.array[offset + 2]);
+      return [target.x, target.y, target.z].every(Number.isFinite) ? target : null;
+    }
+    if (geometry && geometry.vb && geometry.vbstride) {
+      const itemOffset = position && Number.isFinite(position.itemOffset) ? position.itemOffset : 0;
+      const offset = vertexIndex * geometry.vbstride + itemOffset;
+      if (offset < 0 || offset + 2 >= geometry.vb.length) return null;
+      target.set(geometry.vb[offset], geometry.vb[offset + 1], geometry.vb[offset + 2]);
+      return [target.x, target.y, target.z].every(Number.isFinite) ? target : null;
+    }
+    return null;
+  }
+
+  function triangleIndices(geometry) {
+    if (geometry && geometry.index && geometry.index.array) return geometry.index.array;
+    if (geometry && geometry.ib) return geometry.ib;
+    return null;
+  }
+
+  function vertexCount(geometry) {
+    const position = geometry && geometry.attributes ? geometry.attributes.position : null;
+    if (position && Number.isFinite(position.count)) return position.count;
+    if (position && position.array) return Math.floor(position.array.length / (Number(position.itemSize) || 3));
+    if (geometry && geometry.vb && geometry.vbstride) return Math.floor(geometry.vb.length / geometry.vbstride);
+    return 0;
+  }
+
+  function hasReadableVertices(geometry) {
+    return !!geometry && vertexCount(geometry) >= 3;
+  }
+
+  // Real-Time Collision Detection, Christer Ericson, section 5.1.5. The method
+  // uses only vectors already present in Viewer and avoids allocating a Triangle
+  // object for every sampled face of a large element.
+  function closestPointOnTriangle(point, a, b, c, target, scratch) {
+    const ab = scratch.ab.subVectors(b, a);
+    const ac = scratch.ac.subVectors(c, a);
+    const ap = scratch.ap.subVectors(point, a);
+    const d1 = ab.dot(ap);
+    const d2 = ac.dot(ap);
+    if (d1 <= 0 && d2 <= 0) return target.copy(a);
+
+    const bp = scratch.bp.subVectors(point, b);
+    const d3 = ab.dot(bp);
+    const d4 = ac.dot(bp);
+    if (d3 >= 0 && d4 <= d3) return target.copy(b);
+
+    const vc = d1 * d4 - d3 * d2;
+    if (vc <= 0 && d1 >= 0 && d3 <= 0) return target.copy(a).addScaledVector(ab, d1 / (d1 - d3));
+
+    const cp = scratch.cp.subVectors(point, c);
+    const d5 = ab.dot(cp);
+    const d6 = ac.dot(cp);
+    if (d6 >= 0 && d5 <= d6) return target.copy(c);
+
+    const vb = d5 * d2 - d1 * d6;
+    if (vb <= 0 && d2 >= 0 && d6 <= 0) return target.copy(a).addScaledVector(ac, d2 / (d2 - d6));
+
+    const va = d3 * d6 - d5 * d4;
+    if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) {
+      const bc = scratch.bc.subVectors(c, b);
+      return target.copy(b).addScaledVector(bc, (d4 - d3) / ((d4 - d3) + (d5 - d6)));
+    }
+
+    const denominator = 1 / (va + vb + vc);
+    const v = vb * denominator;
+    const w = vc * denominator;
+    return target.copy(a).addScaledVector(ab, v).addScaledVector(ac, w);
+  }
+
+  function getFragmentWorldMatrix(model, fragments, fragmentId, target) {
+    target.identity();
+    try {
+      if (typeof fragments.getWorldMatrix === 'function') {
+        fragments.getWorldMatrix(fragmentId, target);
+        return target;
+      }
+      const proxy = viewer.impl.getFragmentProxy(model, fragmentId);
+      if (proxy) {
+        proxy.getWorldMatrix(target);
+        return target;
+      }
+    } catch (_) { }
+    return target;
+  }
+
+  function getFragmentGeometry(model, fragments, fragmentId) {
+    // SVF and SVF2 expose fragment buffers through different paths. Probe every
+    // supported source independently: an exception in one path must not prevent
+    // the next source from being attempted.
+    if (viewer.impl && typeof viewer.impl.getRenderProxy === 'function') {
+      try {
+        const proxy = viewer.impl.getRenderProxy(model, fragmentId);
+        if (proxy && hasReadableVertices(proxy.geometry)) return proxy.geometry;
+      } catch (_) { }
+    }
+    if (typeof fragments.getVizmesh === 'function') {
+      try {
+        const mesh = fragments.getVizmesh(fragmentId);
+        if (mesh && hasReadableVertices(mesh.geometry)) return mesh.geometry;
+      } catch (_) { }
+    }
+    if (typeof fragments.getGeometry === 'function') {
+      try {
+        const geometry = fragments.getGeometry(fragmentId);
+        if (hasReadableVertices(geometry)) return geometry;
+      } catch (_) { }
+    }
+    return null;
+  }
+
+  /*
+   * Distance from an interior point to the box surface along a unit direction.
+   * Slab ray exit: the smallest positive t at which the ray leaves the AABB.
+   */
+  function exitDistanceAlong(point, direction, bounds) {
+    let best = Infinity;
+    const axes = ['x', 'y', 'z'];
+    for (const axis of axes) {
+      const d = direction[axis];
+      if (Math.abs(d) < 1e-9) continue;
+      const limit = d > 0 ? bounds.max[axis] : bounds.min[axis];
+      const t = (limit - point[axis]) / d;
+      if (t > 0 && t < best) best = t;
+    }
+    return Number.isFinite(best) ? best : NaN;
+  }
+
+  function projectPointToAabbSurface(reference, bounds) {
+    const point = bounds.clampPoint(reference, new THREE.Vector3());
+    const epsilon = 1e-9;
+    const outside = reference.x < bounds.min.x - epsilon || reference.x > bounds.max.x + epsilon ||
+      reference.y < bounds.min.y - epsilon || reference.y > bounds.max.y + epsilon ||
+      reference.z < bounds.min.z - epsilon || reference.z > bounds.max.z + epsilon;
+    if (outside) return point;
+
+    // clampPoint returns the input unchanged when it is inside the box. Move the
+    // smallest distance to a real exterior face so the marker cannot be buried in
+    // an opaque floor/wall when SVF2 triangle buffers are unavailable.
+    const faces = [
+      { distance: Math.abs(reference.x - bounds.min.x), axis: 'x', value: bounds.min.x },
+      { distance: Math.abs(bounds.max.x - reference.x), axis: 'x', value: bounds.max.x },
+      { distance: Math.abs(reference.y - bounds.min.y), axis: 'y', value: bounds.min.y },
+      { distance: Math.abs(bounds.max.y - reference.y), axis: 'y', value: bounds.max.y },
+      { distance: Math.abs(reference.z - bounds.min.z), axis: 'z', value: bounds.min.z },
+      { distance: Math.abs(bounds.max.z - reference.z), axis: 'z', value: bounds.max.z }
+    ];
+    faces.sort((left, right) => left.distance - right.distance);
+    point[faces[0].axis] = faces[0].value;
+    return point;
+  }
+
+  /*
+   * Snap a point onto the real surface of one element using the viewer's own
+   * raycaster - the same mechanism ACC uses when a pin is placed or dragged by
+   * hand, and the reason a hand-placed pin attaches while a computed one does not.
+   *
+   * The element is isolated so nothing in front of it can take the ray, the camera
+   * is aimed at the reference point from the approach direction already chosen for
+   * the Issue, and the shot goes through the centre of the canvas.
+   *
+   * Returns null when the ray does not land on the intended element; the caller
+   * then keeps the bounding-box anchor. Never throws: a viewer build without
+   * impl.hitTest must still produce an Issue.
+   */
+  async function snapAnchorToGeometry(reference, direction, dbId, bounds, localBounds) {
+    if (!Number.isFinite(dbId) || !viewer.impl || typeof viewer.impl.hitTest !== 'function') return null;
+
+    const savedIsolation = typeof viewer.getIsolatedNodes === 'function' ? viewer.getIsolatedNodes() : null;
+    // Only the hit point may escape this temporary camera operation.
+    const savedCamera = JSON.parse(JSON.stringify(viewer.getState({ viewport: true })));
+    if (!savedCamera || !savedCamera.viewport) return null;
+    try {
+      // Distance follows the LOCAL neighbourhood, never the element extent.
+      //
+      // Scaling by the element diagonal put the camera 208 ft from a 135 ft duct on
+      // 09 Sep, where its 1.6 ft cross-section is a few pixels wide; the centre ray
+      // missed on all three Issues that used that element. What has to be visible
+      // for the ray to land is the clash, not the whole run of ductwork.
+      const localDiagonal = localBounds && !localBounds.isEmptyBox
+        ? Math.max(localBounds.getSize(new THREE.Vector3()).length(), 1e-3)
+        : Math.min(Math.max(bounds.getSize(new THREE.Vector3()).length(), 1e-3), SNAP_MAX_LOCAL_FT);
+      const distance = Math.min(Math.max(localDiagonal * 3, SNAP_MIN_DISTANCE_FT), SNAP_MAX_DISTANCE_FT);
+
+      // Aim inside the element's extent, not at the anchor.
+      //
+      // The anchor sits on a bounding-box face, which for a thin element is tangent
+      // to the surface: a ray aimed exactly there grazes it and misses as often as
+      // it hits. Clamping into the box and nudging towards its centre gives the ray
+      // solid material to cross.
+      const aim = clampPointToBounds(reference, bounds);
+      const inward = bounds.getCenter(new THREE.Vector3()).sub(aim);
+      if (inward.lengthSq() > 1e-12) aim.add(inward.normalize().multiplyScalar(SNAP_INWARD_NUDGE_FT));
+
+      const eye = aim.clone().add(direction.clone().multiplyScalar(distance));
+
+      viewer.isolate([dbId]);
+      viewer.navigation.setView(eye, aim.clone());
+      viewer.impl.invalidate(true, true, true);
+      await nextAnimationFrame();
+      await delay(60);
+
+      const canvas = viewer.impl.canvas || viewer.container;
+      const rect = canvas.getBoundingClientRect();
+      if (!(rect.width > 0 && rect.height > 0)) {
+        progress('PUSHPIN SNAP UNAVAILABLE | the viewer canvas has no size; keeping the bounding-box anchor.');
+        return null;
+      }
+
+      // Sample a small raster rather than one centre pixel. A duct seen from 40 ft
+      // is a few pixels across; a single ray through the exact centre is a coin
+      // flip, a 5x5 window spanning 6% of the canvas is not.
+      let best = null;
+      let bestDistance = Infinity;
+      const span = Math.min(rect.width, rect.height) * SNAP_SAMPLE_SPAN;
+      for (let row = -2; row <= 2; row++) {
+        for (let column = -2; column <= 2; column++) {
+          const x = rect.width / 2 + column * span / 4;
+          const y = rect.height / 2 + row * span / 4;
+          let hit = null;
+          try { hit = viewer.impl.hitTest(x, y, true); } catch (e) { hit = null; }
+          if (!hit || !hit.intersectPoint || hit.dbId !== dbId) continue;
+          const d = hit.intersectPoint.distanceToSquared(reference);
+          if (d < bestDistance) { bestDistance = d; best = hit.intersectPoint.clone(); }
+        }
+      }
+
+      if (!best) {
+        progress('PUSHPIN SNAP MISSED | 25 rays around the canvas centre did not land on dbId ' + dbId +
+          ' from ' + distance.toFixed(1) + ' ft; keeping the bounding-box anchor.');
+        return null;
+      }
+      progress('PUSHPIN SNAPPED TO GEOMETRY | dbId ' + dbId +
+        ', displaced ' + Math.sqrt(bestDistance).toFixed(3) + ' ft from the bounding-box anchor, camera at ' +
+        distance.toFixed(1) + ' ft.');
+      return best;
+    } catch (e) {
+      progress('PUSHPIN SNAP UNAVAILABLE | ' + (e && e.message ? e.message : e) +
+        '; keeping the bounding-box anchor.');
+      return null;
+    } finally {
+      try {
+        if (savedIsolation && savedIsolation.length) viewer.isolate(savedIsolation);
+        else viewer.isolate([]);
+      } catch (e) { /* restoring isolation is not worth failing the probe */ }
+      if (!viewer.restoreState({ viewport: savedCamera.viewport }, { viewport: true }, true))
+        throw new Error('PUSHPIN SNAP CAMERA RESTORE FAILED');
+    }
+  }
+
+  function clampPointToBounds(point, bounds) {
+    return new THREE.Vector3(
+      Math.min(Math.max(point.x, bounds.min.x), bounds.max.x),
+      Math.min(Math.max(point.y, bounds.min.y), bounds.max.y),
+      Math.min(Math.max(point.z, bounds.min.z), bounds.max.z));
+  }
+
+  function nextAnimationFrame() {
+    return new Promise(resolve => {
+      if (window.requestAnimationFrame) window.requestAnimationFrame(() => resolve());
+      else window.setTimeout(resolve, 16);
+    });
+  }
+
+  function projectPointToSurface(model, fragments, fragmentIds, reference, fallbackBounds) {
+    const records = [];
+    let totalTriangles = 0;
+    for (const fragmentId of fragmentIds) {
+      const geometry = getFragmentGeometry(model, fragments, fragmentId);
+      if (!geometry) continue;
+      const indices = triangleIndices(geometry);
+      const count = indices ? Math.floor(indices.length / 3) : Math.floor(vertexCount(geometry) / 3);
+      if (count <= 0) continue;
+      records.push({ fragmentId, geometry, indices, count });
+      totalTriangles += count;
+    }
+
+    if (totalTriangles <= 0) {
+      return {
+        point: projectPointToAabbSurface(reference, fallbackBounds),
+        method: 'fallback-aabb-exterior-face',
+        sampledTriangles: 0
+      };
+    }
+
+    const stride = Math.max(1, Math.ceil(totalTriangles / MAX_SURFACE_TRIANGLES));
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const candidate = new THREE.Vector3();
+    const best = new THREE.Vector3();
+    const matrix = new THREE.Matrix4();
+    const triangleScratch = {
+      ab: new THREE.Vector3(), ac: new THREE.Vector3(), ap: new THREE.Vector3(),
+      bp: new THREE.Vector3(), cp: new THREE.Vector3(), bc: new THREE.Vector3()
+    };
+    let bestDistance = Infinity;
+    let sampledTriangles = 0;
+    let globalTriangleIndex = 0;
+
+    for (const record of records) {
+      getFragmentWorldMatrix(model, fragments, record.fragmentId, matrix);
+      for (let triangle = 0; triangle < record.count; triangle++, globalTriangleIndex++) {
+        if (globalTriangleIndex % stride !== 0) continue;
+        const base = triangle * 3;
+        const i0 = record.indices ? Number(record.indices[base]) : base;
+        const i1 = record.indices ? Number(record.indices[base + 1]) : base + 1;
+        const i2 = record.indices ? Number(record.indices[base + 2]) : base + 2;
+        if (!readVertex(record.geometry, i0, a) || !readVertex(record.geometry, i1, b) || !readVertex(record.geometry, i2, c)) continue;
+        a.applyMatrix4(matrix);
+        b.applyMatrix4(matrix);
+        c.applyMatrix4(matrix);
+        if (![a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z].every(Number.isFinite)) continue;
+        closestPointOnTriangle(reference, a, b, c, candidate, triangleScratch);
+        const distance = candidate.distanceToSquared(reference);
+        sampledTriangles++;
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best.copy(candidate);
+        }
+      }
+    }
+
+    if (!Number.isFinite(bestDistance)) {
+      return {
+        point: projectPointToAabbSurface(reference, fallbackBounds),
+        method: 'fallback-aabb-exterior-face',
+        sampledTriangles
+      };
+    }
+    return { point: best, method: stride === 1 ? 'surface-triangles-exact-scan' : 'surface-triangles-bounded-scan', sampledTriangles };
+  }
+
+  function secondaryRequest(request) {
+    return Object.assign({}, request, {
+      requestedExternalId: request.secondaryRequestedExternalId || '',
+      compositeExternalId: '',
+      selectedLinkInstanceUid: request.secondaryLinkInstanceUid || '',
+      selectedModelUid: request.secondaryModelUid || '',
+      sourceName: request.secondarySourceName || '',
+      elementId: Number(request.secondaryElementId) || 0
+    });
+  }
+
+  // Keep the camera local to the Issue. Using the complete element radius made a
+  // floor or wall several hundred feet long zoom the camera out to the whole
+  // building even though the pushpin target itself was correct.
+  // How much context to keep around the overlap region. Framing the overlap exactly
+  // fills the screen with the intersection and nothing around it, which is useless
+  // for judging a clash; four times its size shows both elements meeting.
+  const CLASH_CONTEXT_FACTOR = 4;
+
+  /*
+   * Overlap of two AABBs, or null when they do not intersect. For a clash they do
+   * by construction; AR-ST pairs that merely sit next to each other fall back to
+   * the primary element.
+   */
+  function boundsOverlap(a, b) {
+    if (!a || !b) return null;
+    const min = new THREE.Vector3(
+      Math.max(a.min.x, b.min.x), Math.max(a.min.y, b.min.y), Math.max(a.min.z, b.min.z));
+    const max = new THREE.Vector3(
+      Math.min(a.max.x, b.max.x), Math.min(a.max.y, b.max.y), Math.min(a.max.z, b.max.z));
+    if (max.x < min.x || max.y < min.y || max.z < min.z) return null;
+    const box = new THREE.Box3(min, max);
+    box.isEmptyBox = false;
+    return box;
+  }
+
+  // Framing bounds for a clash, in feet. The lower bound keeps the camera from
+  // ending up inside adjacent geometry when the overlap is a few centimetres; the
+  // upper bound is what stops a long duct or tray from turning the Issue into a
+  // general view of the building.
+  const CLASH_FOCUS_MIN_FT = 8;
+  const CLASH_FOCUS_MAX_FT = 30;
+
+  // Lift above the horizontal so the view is not edge-on to a slab or a tray.
+  const CAMERA_ELEVATION_RAD = 30 * Math.PI / 180;
+
+  /*
+   * Approach direction for one clash.
+   *
+   * Perpendicular to the axis between the two elements, lifted by
+   * CAMERA_ELEVATION_RAD. Looking ALONG the pair axis puts one element behind the
+   * other; looking across it shows them meeting.
+   *
+   * The cross product yields two opposed directions and the geometry alone cannot
+   * prove which one is unobstructed. Rather than call a viewer internal whose
+   * signature is not documented, pick the side facing OUT of the model: a camera
+   * outside the building looking in is far more often clear than one placed deeper
+   * inside it. This is a heuristic and is logged as one.
+   */
+  function adaptiveHorizontalDirection(localBounds, center, modelCentre) {
+    const size = localBounds.getSize(new THREE.Vector3());
+    const boundsCenter = localBounds.getCenter(new THREE.Vector3());
+    const outwardReference = modelCentre
+      ? center.clone().sub(modelCentre)
+      : center.clone().sub(boundsCenter);
+    const sx = Math.abs(outwardReference.x) > 1e-6 ? Math.sign(outwardReference.x) : 1;
+    const sy = Math.abs(outwardReference.y) > 1e-6 ? Math.sign(outwardReference.y) : 1;
+
+    // Approach primarily along the locally thinnest horizontal axis. For a slab,
+    // whose thin axis is vertical, use an oblique diagonal. This fallback varies
+    // with the clash location and cannot collapse every Issue to one azimuth.
+    if (size.z <= size.x && size.z <= size.y)
+      return new THREE.Vector3(0.72 * sx, 0.42 * sy, 0).normalize();
+    if (size.x <= size.y)
+      return new THREE.Vector3(0.96 * sx, 0.20 * sy, 0).normalize();
+    return new THREE.Vector3(0.20 * sx, 0.96 * sy, 0).normalize();
+  }
+
+  function chooseViewDirection(worldUp, pairAxis, center, modelCentre, localBounds) {
+    let across = null;
+    if (pairAxis && pairAxis.lengthSq() > 1e-12) {
+      const candidate = new THREE.Vector3().crossVectors(pairAxis.clone().normalize(), worldUp);
+      // Near-parallel to world up: the cross product collapses and any direction
+      // derived from it is noise.
+      if (candidate.lengthSq() > 1e-6) across = candidate.normalize();
+    }
+    if (!across) {
+      const adaptive = adaptiveHorizontalDirection(localBounds, center, modelCentre);
+      const lift = worldUp.clone().multiplyScalar(Math.sin(CAMERA_ELEVATION_RAD));
+      const fallback = adaptive.multiplyScalar(Math.cos(CAMERA_ELEVATION_RAD)).add(lift).normalize();
+      progress('CAMERA DIRECTION ADAPTIVE | pair axis is unavailable or parallel to world up; ' +
+        'using the local bounds and clash location.');
+      return fallback;
+    }
+
+    let outward = across;
+    if (modelCentre) {
+      const awayFromModel = center.clone().sub(modelCentre);
+      if (awayFromModel.lengthSq() > 1e-9 && across.dot(awayFromModel) < 0) outward = across.clone().negate();
+    }
+
+    const lift = worldUp.clone().multiplyScalar(Math.sin(CAMERA_ELEVATION_RAD));
+    const direction = outward.clone().multiplyScalar(Math.cos(CAMERA_ELEVATION_RAD)).add(lift).normalize();
+    progress('CAMERA DIRECTION | across the pair axis [' +
+      pairAxis.clone().normalize().toArray().map(v => v.toFixed(3)).join(', ') +
+      '], elevated ' + Math.round(CAMERA_ELEVATION_RAD * 180 / Math.PI) + ' deg, facing away from the model centre.');
+    return direction;
+  }
+
+  function pointInsideBounds(point, bounds, epsilon) {
+    return !!(point && bounds && point.x >= bounds.min.x - epsilon && point.x <= bounds.max.x + epsilon &&
+      point.y >= bounds.min.y - epsilon && point.y <= bounds.max.y + epsilon &&
+      point.z >= bounds.min.z - epsilon && point.z <= bounds.max.z + epsilon);
+  }
+
+  // Revit exact-solid intersection is the Clash authority. Viewer bounds are a
+  // tolerance/correction aid; missing mesh samples cannot disprove that solid intersection.
+  function validateClashPushpinAnchor(anchor, primaryBounds, secondaryBounds, toleranceViewer,
+      maxCorrectionViewer, sampledTriangleCount, revitIntersectionConfirmed) {
+    const finite = anchor && anchor.toArray().every(Number.isFinite);
+    if (!finite) return { anchor, insidePrimary: null, insideSecondary: null,
+      correctionApplied: false, correctionDistanceViewer: 0, outcome: 'UnsafeCoordinateRejected' };
+    if (!primaryBounds || !secondaryBounds) return { anchor: anchor.clone(), insidePrimary: null,
+      insideSecondary: null, correctionApplied: false, correctionDistanceViewer: 0,
+      outcome: revitIntersectionConfirmed ? 'ViewerValidationUnavailable' : 'UnsafeCoordinateRejected' };
+
+    const insidePrimary = pointInsideBounds(anchor, primaryBounds, 1e-9);
+    const insideSecondary = pointInsideBounds(anchor, secondaryBounds, 1e-9);
+    if (insidePrimary && insideSecondary) return { anchor: anchor.clone(), insidePrimary, insideSecondary,
+      correctionApplied: false, correctionDistanceViewer: 0, outcome: 'ExactRevitIntersectionAccepted' };
+    if (pointInsideBounds(anchor, primaryBounds, toleranceViewer) &&
+        pointInsideBounds(anchor, secondaryBounds, toleranceViewer))
+      return { anchor: anchor.clone(), insidePrimary, insideSecondary,
+        correctionApplied: false, correctionDistanceViewer: 0, outcome: 'ViewerBoundsAccepted' };
+
+    const min = new THREE.Vector3(
+      Math.max(primaryBounds.min.x, secondaryBounds.min.x) - toleranceViewer,
+      Math.max(primaryBounds.min.y, secondaryBounds.min.y) - toleranceViewer,
+      Math.max(primaryBounds.min.z, secondaryBounds.min.z) - toleranceViewer);
+    const max = new THREE.Vector3(
+      Math.min(primaryBounds.max.x, secondaryBounds.max.x) + toleranceViewer,
+      Math.min(primaryBounds.max.y, secondaryBounds.max.y) + toleranceViewer,
+      Math.min(primaryBounds.max.z, secondaryBounds.max.z) + toleranceViewer);
+    if (min.x <= max.x && min.y <= max.y && min.z <= max.z) {
+      const corrected = new THREE.Vector3(
+        Math.min(max.x, Math.max(min.x, anchor.x)),
+        Math.min(max.y, Math.max(min.y, anchor.y)),
+        Math.min(max.z, Math.max(min.z, anchor.z)));
+      const distance = corrected.distanceTo(anchor);
+      if (distance <= maxCorrectionViewer + 1e-9)
+        return { anchor: corrected, insidePrimary, insideSecondary, correctionApplied: distance > 1e-9,
+          correctionDistanceViewer: distance, outcome: 'ViewerBoundsCorrected' };
+    }
+    return { anchor: anchor.clone(), insidePrimary, insideSecondary, correctionApplied: false,
+      correctionDistanceViewer: 0,
+      outcome: revitIntersectionConfirmed ? 'ViewerValidationUnavailable' : 'UnsafeCoordinateRejected' };
+  }
+
+  // Test the short camera-to-intersection segment. A foreign hit means another
+  // object would occlude the Clash pin; hits belonging to either Clash member
+  // are allowed because the intersection is inside both solids.
+  function clashLineOfSight(eye, target, allowed) {
+    if (!viewer.impl || typeof viewer.impl.rayIntersect !== 'function') return true;
+    const delta = target.clone().sub(eye);
+    const distance = delta.length();
+    if (!(distance > 1e-9)) return false;
+    const ray = new THREE.Ray(eye.clone(), delta.normalize());
+    try {
+      const hit = viewer.impl.rayIntersect(ray, false);
+      if (!hit || !Number.isFinite(hit.distance)) return true;
+      if (hit.distance > distance + 1e-3) return true;
+      // A Clash member is expected immediately before an intersection target.
+      // Do not accept it as an obstacle close to the eye: that would conceal
+      // foreign geometry for the rest of the segment.
+      if (allowed && allowed.ids.has(hit.dbId) &&
+          (!hit.model || allowed.models.has(hit.model)) &&
+          hit.distance >= distance - (0.50 / 0.3048)) return true;
+      return false;
+    } catch (_) { return true; }
+  }
+
+  // Convert the explicitly bounded fallback distances once; never search below 0.25 m.
+  const CLASH_CAMERA_PRIMARY_DISTANCES = [0.70, 0.60, 0.80]
+    .map(distanceM => ({ distanceM, distanceFt: distanceM / 0.3048 }));
+  const CLASH_CAMERA_NEAR_DISTANCES = [0.55, 0.50, 0.45, 0.40, 0.35, 0.30, 0.25]
+    .map(distanceM => ({ distanceM, distanceFt: distanceM / 0.3048 }));
+  const CLASH_CAMERA_FAR_DISTANCES = [1.0, 1.5, 2.0, 3.0]
+    .map(distanceM => ({ distanceM, distanceFt: distanceM / 0.3048 }));
+
+  function tryFindValidClashCameraAtDistance(anchor, candidates, distanceFt, worldUp,
+      primaryBounds, secondaryBounds, allowed, modelCentre, onRejected) {
+    for (const direction of candidates) {
+      const eye = anchor.clone().add(direction.clone().multiplyScalar(distanceFt));
+      let reason = null;
+      if (![...eye.toArray(), ...anchor.toArray(), ...worldUp.toArray()].every(Number.isFinite))
+        reason = 'non_finite';
+      else if (eye.clone().sub(anchor).lengthSq() < 1e-24) reason = 'invalid_basis';
+      else if (pointInsideBounds(eye, primaryBounds, 1e-4) ||
+          (secondaryBounds && pointInsideBounds(eye, secondaryBounds, 1e-4))) reason = 'inside_geometry';
+      else if (!clashLineOfSight(eye, anchor, allowed)) reason = 'los_blocked';
+      else {
+        // Use the unchanged viewport builder, including its world-up fallback and dot tolerance.
+        // Validate before accepting so a bad basis cannot prevent trying the next direction.
+        try {
+          const viewport = buildViewport(primaryBounds, anchor, null, null, null,
+            modelCentre, direction, distanceFt);
+          const look = viewport.target.map((v, i) => v - viewport.eye[i]);
+          const length = Math.hypot(...look), upLength = Math.hypot(...viewport.up);
+          if (![...viewport.eye, ...viewport.target, ...viewport.up].every(Number.isFinite)) reason = 'non_finite';
+          else if (!(length > 1e-12) || !(upLength > 1e-12) ||
+              Math.abs(viewport.up.reduce((sum, v, i) => sum + v * look[i], 0) / length / upLength) > 1e-6)
+            reason = 'invalid_basis';
+          else if (cameraDistance(viewport.target, anchor.toArray()) > 0.001) reason = 'other';
+        } catch (_) { reason = 'invalid_basis'; }
+      }
+      if (reason) { if (onRejected) onRejected(reason); continue; }
+      const outward = modelCentre ? eye.clone().sub(modelCentre).normalize() : direction;
+      progress('CLASH CAMERA LOS OK | distance=' + distanceFt.toFixed(4) +
+        ' ft; direction=[' + outward.toArray().map(v => v.toFixed(4)).join(', ') + ']');
+      return { direction, distanceFt };
+    }
+    return null;
+  }
+
+  function chooseClashCameraDirection(anchor, pairAxis, worldUp, primaryBounds, secondaryBounds,
+                                      primaryDbId, secondaryDbId, primaryModel, secondaryModel, modelCentre) {
+    const axis = pairAxis && pairAxis.lengthSq() > 1e-10
+      ? pairAxis.clone().normalize() : new THREE.Vector3(1, 0, 0);
+    let side = new THREE.Vector3().crossVectors(axis, worldUp);
+    if (side.lengthSq() < 1e-10) side = new THREE.Vector3(1, 0, 0);
+    side.normalize();
+    const up = worldUp.clone().normalize();
+    let horizontalOrtho = new THREE.Vector3().crossVectors(up, side);
+    if (horizontalOrtho.lengthSq() < 1e-10) horizontalOrtho = axis.clone();
+    horizontalOrtho.sub(up.clone().multiplyScalar(horizontalOrtho.dot(up))).normalize();
+    const candidates = [];
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6;
+      const horizontal = side.clone().multiplyScalar(Math.cos(a))
+        .add(horizontalOrtho.clone().multiplyScalar(Math.sin(a))).normalize();
+      for (const elevation of [30, 0, -25]) {
+        candidates.push(horizontal.clone().multiplyScalar(Math.cos(elevation * Math.PI / 180))
+          .add(up.clone().multiplyScalar(Math.sin(elevation * Math.PI / 180))).normalize());
+      }
+    }
+    const allowed = {
+      ids: new Set([primaryDbId, secondaryDbId].filter(Number.isFinite)),
+      models: new Set([primaryModel, secondaryModel].filter(Boolean))
+    };
+    progress('CLASH_CAMERA_PRIMARY_SEARCH_BEGIN | distancesM=[0.70,0.60,0.80]');
+    for (const distance of CLASH_CAMERA_PRIMARY_DISTANCES) {
+      const primary = tryFindValidClashCameraAtDistance(anchor, candidates, distance.distanceFt,
+        worldUp, primaryBounds, secondaryBounds, allowed, modelCentre);
+      if (primary) { primary.quality = 'Primary'; return primary; }
+    }
+    progress('CAMERA_PRIMARY_SEARCH_FAILED');
+    progress('CLASH_CAMERA_NEAR_FALLBACK_BEGIN | distancesM=[0.55,0.50,0.45,0.40,0.35,0.30,0.25]');
+    for (const distance of CLASH_CAMERA_NEAR_DISTANCES) {
+      const result = tryFindValidClashCameraAtDistance(anchor, candidates, distance.distanceFt,
+        worldUp, primaryBounds, secondaryBounds, allowed, modelCentre,
+        reason => progress('CLASH_CAMERA_NEAR_CANDIDATE_REJECTED | distanceM=' +
+          distance.distanceM.toFixed(2) + ' | reason=' + reason));
+      if (result) {
+        result.quality = 'NearFallback';
+        progress('CAMERA_FALLBACK_USED | quality=NearFallback | distanceM=' + distance.distanceM.toFixed(2));
+        return result;
+      }
+    }
+    progress('CLASH_CAMERA_NEAR_FALLBACK_FAILED | minDistanceM=0.25');
+    progress('CLASH_CAMERA_FAR_FALLBACK_BEGIN | distancesM=[1.0,1.5,2.0,3.0]');
+    for (const distance of CLASH_CAMERA_FAR_DISTANCES) {
+      const result = tryFindValidClashCameraAtDistance(anchor, candidates, distance.distanceFt,
+        worldUp, primaryBounds, secondaryBounds, allowed, modelCentre,
+        reason => progress('CLASH_CAMERA_FAR_CANDIDATE_REJECTED | distanceM=' +
+          distance.distanceM.toFixed(2) + ' | reason=' + reason));
+      if (result) {
+        result.quality = 'FarFallback';
+        progress('CLASH_CAMERA_FAR_FALLBACK_ACCEPTED | distanceM=' + distance.distanceM.toFixed(2));
+        progress('CAMERA_FALLBACK_USED | quality=FarFallback | distanceM=' + distance.distanceM.toFixed(2));
+        return result;
+      }
+    }
+
+    // A usable ACC camera is preferable to dropping a confirmed Revit Clash.
+    // This fallback still requires a finite basis and an eye outside both elements;
+    // LOS quality is recorded as a warning rather than promoted to Clash validity.
+    const sizes = [primaryBounds, secondaryBounds].filter(Boolean)
+      .map(b => b.getSize(new THREE.Vector3()).length()).filter(Number.isFinite);
+    const safeDistanceFt = Math.max(3.0 / 0.3048, (sizes.length ? Math.max.apply(null, sizes) : 0) + 1.0 / 0.3048);
+    for (const direction of candidates) {
+      const eye = anchor.clone().add(direction.clone().multiplyScalar(safeDistanceFt));
+      if (!eye.toArray().every(Number.isFinite)) continue;
+      if (pointInsideBounds(eye, primaryBounds, 1e-4) ||
+          (secondaryBounds && pointInsideBounds(eye, secondaryBounds, 1e-4))) continue;
+      try {
+        buildViewport(primaryBounds, anchor, null, null, null, modelCentre, direction, safeDistanceFt);
+        progress('CAMERA_FALLBACK_USED | quality=DeterministicFallback | warning=ideal LOS unavailable');
+        return { direction, distanceFt: safeDistanceFt, quality: 'DeterministicFallback' };
+      } catch (_) { }
+    }
+    throw new Error('CAMERA_CAPTURE_FAILED | no finite camera basis outside Clash geometry.');
+  }
+  function pointsMatch(a, b, tolerance) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length < 3 || b.length < 3) return false;
+    for (let i = 0; i < 3; i++) {
+      if (!Number.isFinite(a[i]) || !Number.isFinite(b[i])) return false;
+      if (Math.abs(a[i] - b[i]) > tolerance) return false;
+    }
+    return true;
+  }
+
+  function issueCameraState(viewport) {
+    // Retain the Viewer schema and projection, never its temporary eye or scale.
+    const state = viewer.getState({ viewport: true });
+    if (!state || !state.viewport) throw new Error('Viewer camera schema is unavailable.');
+    const captured = JSON.parse(JSON.stringify(state.viewport));
+    captured.eye = viewport.eye.slice();
+    captured.target = viewport.target.slice();
+    captured.up = viewport.up.slice();
+    captured.worldUpVector = viewport.worldUpVector.slice();
+    captured.pivotPoint = viewport.target.slice();
+    captured.distanceToOrbit = viewport.distanceToOrbit;
+    if (captured.isOrthographic || captured.projection === 'orthographic')
+      captured.orthographicHeight = viewport.orthographicHeight;
+    else
+      captured.fieldOfView = viewport.fieldOfView;
+    return { viewport: captured };
+  }
+
+  function arstCameraState(viewport) {
+    const state = issueCameraState(viewport);
+    const camera = state.viewport;
+    camera.projection = 'perspective';
+    camera.isOrthographic = false;
+    camera.eye = viewport.eye.slice();
+    camera.target = viewport.target.slice();
+    camera.up = viewport.up.slice();
+    camera.pivotPoint = viewport.target.slice();
+    camera.distanceToOrbit = viewport.distanceToOrbit;
+    camera.fieldOfView = viewport.fieldOfView;
+    return state;
+  }
+
+  function assertLegacyIssueCamera(captured, expected) {
+    const orthographic = expected.isOrthographic || expected.projection === 'orthographic';
+    const scale = orthographic ? 'orthographicHeight' : 'fieldOfView';
+    if (!captured ||
+        cameraDistance(captured.eye, expected.eye) > 0.001 ||
+        cameraDistance(captured.target, expected.target) > 0.001 ||
+        cameraAngle(captured.up, expected.up) > 0.001 ||
+        cameraAngle(cameraDirectionOf(captured), cameraDirectionOf(expected)) > 0.001 ||
+        !!(captured.isOrthographic || captured.projection === 'orthographic') !== !!orthographic ||
+        !Number.isFinite(captured[scale]) || Math.abs(captured[scale] - expected[scale]) > 0.001)
+      throw new Error('CAMERA CAPTURE REJECTED | Viewer did not retain the computed Issue camera.');
+  }
+
+  function cameraDto(camera) {
+    const value = camera && camera.viewport ? camera.viewport : camera;
+    if (!value) return null;
+    const eye = Array.isArray(value.eye) ? value.eye.slice() : null;
+    const target = Array.isArray(value.target) ? value.target.slice() : null;
+    const up = Array.isArray(value.up) ? value.up.slice() : null;
+    const distance = cameraDistance(eye, target);
+    return { position: eye, target, up, distance: Number.isFinite(distance) ? distance : null,
+      perspective: value.isOrthographic === false && value.projection !== 'orthographic',
+      fov: Number.isFinite(value.fieldOfView) ? value.fieldOfView : null,
+      orthoScale: Number.isFinite(value.orthographicHeight) ? value.orthographicHeight : null };
+  }
+
+  function compareArstCamera(actual, expectedState, pushpin, modelDiagonal) {
+    const expected = expectedState.viewport || expectedState;
+    const actualDto = cameraDto(actual);
+    const expectedDto = cameraDto(expected);
+    const targetTolerance = Math.max(0.001, Math.min(expectedDto.distance || 1, modelDiagonal || 1) * 1e-5);
+    const angularTolerance = 0.001;
+    const positionDelta = cameraDistance(actualDto.position, expectedDto.position);
+    const targetDelta = cameraDistance(actualDto.target, expectedDto.target);
+    const directionAngle = cameraAngle(cameraDirectionOf(actual), cameraDirectionOf(expected));
+    const upAngle = cameraAngle(actualDto.up, expectedDto.up);
+    const actualDistance = actualDto.distance;
+    const expectedDistance = expectedDto.distance;
+    const distanceDelta = Number.isFinite(actualDistance) && Number.isFinite(expectedDistance)
+      ? Math.abs(actualDistance - expectedDistance) : Infinity;
+    const targetMatches = targetDelta <= targetTolerance && cameraDistance(actualDto.target, pushpin) <= targetTolerance;
+    const directionMatches = directionAngle <= angularTolerance;
+    const upMatches = upAngle <= angularTolerance;
+    const projectionMatches = actualDto.perspective === expectedDto.perspective;
+    const distanceChangedOnly = distanceDelta > targetTolerance && targetMatches && directionMatches && upMatches && projectionMatches;
+    const reasonableDistance = Number.isFinite(actualDistance) && actualDistance > targetTolerance &&
+      (!Number.isFinite(modelDiagonal) || actualDistance <= Math.max(modelDiagonal * 1.5, expectedDistance * 10));
+    const accepted = targetMatches && directionMatches && upMatches && projectionMatches && reasonableDistance &&
+      Array.isArray(actualDto.position) && actualDto.position.every(Number.isFinite) &&
+      Array.isArray(actualDto.target) && actualDto.target.every(Number.isFinite) &&
+      Array.isArray(actualDto.up) && actualDto.up.every(Number.isFinite);
+    return { accepted, distanceChangedOnly, positionDelta, targetDelta, directionAngle,
+      upAngle, expectedDistance, actualDistance, targetTolerance, angularTolerance,
+      expectedDto, actualDto, rejectionReason: accepted ? null : 'target/direction/up/projection/distance mismatch' };
+  }
+
+  // Viewer-local units are feet. Position tolerances are sub-millimetre;
+  // directions use angles so harmless normalization does not reject a camera.
+  const ISSUE_CAMERA_TOLERANCE = { eye: 0.001, target: 0.0001, angle: 0.0001 };
+  const CAMERA_STABLE_POSITION = 0.00001;
+  const CAMERA_STABLE_ANGLE = 0.00001;
+  const CAMERA_TIMEOUT_MS = 3000;
+
+  function cameraDistance(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== 3 || b.length !== 3 ||
+        !a.every(Number.isFinite) || !b.every(Number.isFinite)) return Infinity;
+    return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  }
+
+  function cameraAngle(a, b) {
+    if (!Number.isFinite(cameraDistance(a, b))) return Infinity;
+    const la = Math.hypot(...a), lb = Math.hypot(...b);
+    if (la < 1e-12 || lb < 1e-12) return Infinity;
+    return Math.acos(Math.max(-1, Math.min(1, a.reduce((s, v, i) => s + v * b[i], 0) / la / lb)));
+  }
+
+  function cameraDirectionOf(camera) {
+    return camera.target.map((v, i) => v - camera.eye[i]);
+  }
+
+  function readIssueCamera() {
+    const nav = viewer.navigation;
+    return {
+      eye: nav.getPosition().toArray(), target: nav.getTarget().toArray(),
+      up: nav.getCameraUpVector().toArray(),
+      isOrthographic: !nav.getCamera().isPerspective,
+      fieldOfView: nav.getVerticalFov()
+    };
+  }
+
+  function assertIssueCamera(captured, expected, pushpin) {
+    const t = ISSUE_CAMERA_TOLERANCE;
+    if (!captured || cameraDistance(captured.eye, expected.eye) > t.eye ||
+        cameraDistance(captured.target, expected.target) > t.target ||
+        cameraDistance(captured.target, pushpin) > t.target ||
+        cameraAngle(captured.up, expected.up) > t.angle ||
+        cameraAngle(cameraDirectionOf(captured), cameraDirectionOf(expected)) > t.angle ||
+        captured.isOrthographic !== false ||
+        (captured.projection && captured.projection !== 'perspective') ||
+        !Number.isFinite(captured.fieldOfView) ||
+        Math.abs(captured.fieldOfView - expected.fieldOfView) > 0.001)
+      throw new Error('Viewer did not retain the computed Issue camera.');
+  }
+
+  async function stopIssueCameraTransition() {
+    const nav = viewer.navigation;
+    nav.setRequestTransition(false);
+    nav.setRequestFitToView(false);
+    nav.setRequestHomeView(false);
+    // setTransitionActive(false) only clears a status flag; it does NOT cancel
+    // AutoCam's RAF writer. Viewer 7 exposes shotParams for modification. Finish
+    // its current shot through that same machinery, before applying our camera.
+    const autocam = viewer.autocam;
+    const shot = autocam && autocam.shotParams;
+    const duration = shot && shot.duration;
+    if (shot) shot.duration = 0;
+    try {
+      await new Promise((resolve, reject) => {
+        let frame = null;
+        const timer = setTimeout(() => {
+          if (frame !== null) cancelAnimationFrame(frame);
+          reject(new Error('Previous camera transition timed out.'));
+        }, CAMERA_TIMEOUT_MS);
+        const check = () => {
+          if (!nav.getTransitionActive() && !(autocam && autocam.currentlyAnimating)) {
+            clearTimeout(timer);
+            resolve();
+          } else frame = requestAnimationFrame(check);
+        };
+        check();
+      });
+    } finally {
+      if (shot) shot.duration = duration;
+      nav.setRequestTransition(false);
+      nav.setRequestFitToView(false);
+      nav.setRequestHomeView(false);
+    }
+  }
+
+  function applyIssueCamera(viewport) {
+    const nav = viewer.navigation;
+    const vector = values => new THREE.Vector3(values[0], values[1], values[2]);
+    // Do not inherit the published/snap camera's orthographic projection:
+    // restoreState adjusts an orthographic eye to orthographicHeight.
+    nav.toPerspective();
+    nav.setWorldUpVector(vector(viewport.worldUpVector), false, true);
+    nav.setVerticalFov(viewport.fieldOfView, false);
+    nav.setView(vector(viewport.eye), vector(viewport.target));
+    nav.setCameraUpVector(vector(viewport.up), true);
+    nav.setPivotPoint(vector(viewport.target));
+    viewer.impl.invalidate(true, true, true);
+  }
+
+  function waitForIssueCamera(viewport, stats) {
+    return new Promise((resolve, reject) => {
+      let previous = null, done = false, redraw = null;
+      const cameraEvent = Autodesk.Viewing.CAMERA_CHANGE_EVENT;
+      const renderEvent = Autodesk.Viewing.RENDER_PRESENTED_EVENT;
+      const cleanup = () => {
+        done = true;
+        clearTimeout(timer);
+        if (redraw !== null) cancelAnimationFrame(redraw);
+        viewer.removeEventListener(cameraEvent, changed);
+        viewer.removeEventListener(renderEvent, rendered);
+      };
+      const changed = () => { stats.events++; stats.stableFrames = 0; previous = null; };
+      const rendered = () => {
+        if (done) return;
+        try {
+          const actual = readIssueCamera();
+          const stable = previous && cameraDistance(actual.eye, previous.eye) <= CAMERA_STABLE_POSITION &&
+            cameraDistance(actual.target, previous.target) <= CAMERA_STABLE_POSITION &&
+            cameraAngle(actual.up, previous.up) <= CAMERA_STABLE_ANGLE;
+          stats.stableFrames = stats.events && stable ? stats.stableFrames + 1 : 0;
+          previous = actual;
+          if (stats.stableFrames >= 2 && !viewer.navigation.getTransitionActive() &&
+              !viewer.navigation.getRequestTransition() &&
+              !(viewer.autocam && viewer.autocam.currentlyAnimating)) {
+            cleanup();
+            resolve(actual);
+            return;
+          }
+          // Count presented Viewer frames, not just browser RAF callbacks.
+          if (redraw === null) redraw = requestAnimationFrame(() => {
+            redraw = null;
+            if (!done) viewer.impl.invalidate(true, true, true);
+          });
+        } catch (error) { cleanup(); reject(error); }
+      };
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('Camera stabilization timed out.'));
+      }, CAMERA_TIMEOUT_MS);
+      viewer.addEventListener(cameraEvent, changed);
+      viewer.addEventListener(renderEvent, rendered);
+      try { applyIssueCamera(viewport); } catch (error) { cleanup(); reject(error); }
+    });
+  }
+
+  function logIssueCamera(requested, actual, pushpin, serialized, stats, error) {
+    const vector = v => Array.isArray(v) && v.every(Number.isFinite) ? v.map(n => Number(n.toFixed(6))) : null;
+    const delta = n => Number.isFinite(n) ? Number(n.toFixed(8)) : null;
+    progress('CAMERA CAPTURE | ' + JSON.stringify({
+      requestedEye: vector(requested.eye), actualEye: vector(actual && actual.eye),
+      eyeDelta: delta(cameraDistance(requested.eye, actual && actual.eye)),
+      requestedTarget: vector(requested.target), actualTarget: vector(actual && actual.target),
+      targetDelta: delta(cameraDistance(requested.target, actual && actual.target)),
+      pushpin: vector(pushpin), pushpinToTargetDelta: delta(cameraDistance(pushpin, actual && actual.target)),
+      requestedUp: vector(requested.up), actualUp: vector(actual && actual.up),
+      angularDelta: delta(cameraAngle(requested.up, actual && actual.up)),
+      directionAngularDelta: actual ? delta(cameraAngle(cameraDirectionOf(requested), cameraDirectionOf(actual))) : null,
+      cameraEventCount: stats.events, stableFrameCount: stats.stableFrames, retryCount: stats.retry,
+      serializedViewport: serialized ? { eye: vector(serialized.eye), target: vector(serialized.target), up: vector(serialized.up) } : null,
+      serializedTargetToPushpinDelta: delta(cameraDistance(serialized && serialized.target, pushpin)),
+      status: error ? error.message : 'verified'
+    }));
+  }
+
+  async function captureIssueCamera(viewport, pushpin) {
+    for (let retry = 0; retry <= 1; retry++) {
+      const stats = { events: 0, stableFrames: 0, retry };
+      let actual = null, state = null;
+      try {
+        await stopIssueCameraTransition();
+        await waitForIssueCamera(viewport, stats);
+        actual = readIssueCamera();
+        assertIssueCamera(actual, viewport, pushpin);
+        // Read and serialize only after stabilization. Neither getState nor an
+        // extension's getState handler may substitute a different camera.
+        state = JSON.parse(JSON.stringify(viewer.getState()));
+        assertIssueCamera(readIssueCamera(), actual, pushpin);
+        assertIssueCamera(state && state.viewport, actual, pushpin);
+        logIssueCamera(viewport, actual, pushpin, state.viewport, stats, null);
+        return state;
+      } catch (error) {
+        try { actual = actual || readIssueCamera(); } catch (_) { /* report unavailable navigation */ }
+        logIssueCamera(viewport, actual, pushpin, state && state.viewport, stats, error);
+        if (retry === 1) {
+          try { await stopIssueCameraTransition(); }
+          catch (cleanupError) {
+            // An uncontrolled writer must not survive into another item's snap.
+            probeCameraFailure = 'CAMERA_CAPTURE_FAILED | Camera lifecycle cleanup failed: ' + cleanupError.message;
+          }
+          throw new Error('CAMERA_CAPTURE_FAILED | Geometry resolved; ' + error.message);
+        }
+      }
+    }
+  }
+
+  // AR-ST uses the legacy viewport schema (including its projection/scale), so
+  // it must not use the Clash perspective lifecycle above. Restore the AR-ST
+  // viewport, wait for Viewer to publish the change, then compare navigation
+  // values before serializing state. This branch is intentionally AR-ST-only.
+  function waitForArstCamera(viewport, stats) {
+    return new Promise((resolve, reject) => {
+      let previous = null, stableReads = 0, frames = 0, done = false, poll = null, raf = null;
+      const cameraEvent = Autodesk.Viewing.CAMERA_CHANGE_EVENT;
+      const renderEvent = Autodesk.Viewing.RENDER_PRESENTED_EVENT;
+      const cleanup = () => {
+        done = true; clearTimeout(timer);
+        if (poll !== null) clearInterval(poll);
+        if (raf !== null && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
+        viewer.removeEventListener(cameraEvent, changed);
+        viewer.removeEventListener(renderEvent, rendered);
+      };
+      const changed = () => { stats.events++; stableReads = 0; previous = null; };
+      const rendered = () => {
+        if (done) return;
+        try {
+          const actual = readIssueCamera();
+          frames++;
+          const stable = previous && cameraDistance(actual.eye, previous.eye) <= CAMERA_STABLE_POSITION &&
+            cameraDistance(actual.target, previous.target) <= CAMERA_STABLE_POSITION &&
+            cameraAngle(actual.up, previous.up) <= CAMERA_STABLE_ANGLE &&
+            actual.isOrthographic === previous.isOrthographic;
+          stableReads = stable ? stableReads + 1 : 0;
+          stats.stableFrames = stableReads;
+          previous = actual;
+          if (frames >= 2 && stableReads >= 3 &&
+              !viewer.navigation.getTransitionActive() && !viewer.navigation.getRequestTransition()) {
+            cleanup(); resolve(actual); return;
+          }
+        } catch (error) { cleanup(); reject(error); return; }
+      };
+      const timer = setTimeout(() => { cleanup(); reject(new Error('AR-ST camera stabilization timed out.')); }, CAMERA_TIMEOUT_MS);
+      viewer.addEventListener(cameraEvent, changed);
+      viewer.addEventListener(renderEvent, rendered);
+      progress('ARST_CAMERA_APPLY_BEGIN');
+      try {
+        progress('ARST_CAMERA_API_PAYLOAD | ' + JSON.stringify({ attempt: stats.attempt,
+          snapshotId: stats.snapshotId, api: 'viewer.restoreState', camera: cameraDto(viewport) }));
+        if (!viewer.restoreState(viewport, { viewport: true }, true))
+          throw new Error('Viewer rejected the AR-ST viewport.');
+        viewer.impl.invalidate(true, true, true);
+        // Some WebView/hidden Viewer combinations do not emit a camera event or
+        // presented render event. Read navigation through a bounded timer as the
+        // source of truth; RAF is only an additional frame hint.
+        poll = setInterval(rendered, 50);
+        if (typeof requestAnimationFrame === 'function') {
+          const tick = () => { if (!done) { rendered(); raf = requestAnimationFrame(tick); } };
+          raf = requestAnimationFrame(tick);
+        }
+      } catch (error) { cleanup(); reject(error); }
+    });
+  }
+
+  async function captureArstCamera(viewport, pushpin, modelDiagonal, snapshotId) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const stats = { events: 0, stableFrames: 0, attempt: attempt + 1, snapshotId };
+      const started = performance.now();
+      try {
+        await stopIssueCameraTransition();
+        const actual = await waitForArstCamera(viewport, stats);
+        if (stats.events > 0) progress('ARST_CAMERA_CHANGE_OBSERVED');
+        progress('ARST_CAMERA_IMMEDIATE_READBACK | ' + JSON.stringify({ attempt: attempt + 1, snapshotId,
+          expected: cameraDto(viewport), actual: cameraDto(actual),
+          elapsedMs: Math.round(performance.now() - started), changeEventObserved: stats.events > 0 }));
+        progress('ARST_CAMERA_STABLE');
+        progress('ARST_CAMERA_STABILITY_SAMPLE | ' + JSON.stringify({ attempt: attempt + 1,
+          stableReads: stats.stableFrames, elapsedMs: Math.round(performance.now() - started) }));
+        const comparison = compareArstCamera(actual, viewport, pushpin, modelDiagonal);
+        progress('ARST_CAMERA_COMPARE | ' + JSON.stringify({ attempt: attempt + 1,
+          snapshotId, expectedPosition: comparison.expectedDto.position, actualPosition: comparison.actualDto.position,
+          expectedTarget: comparison.expectedDto.target, actualTarget: comparison.actualDto.target,
+          expectedUp: comparison.expectedDto.up, actualUp: comparison.actualDto.up,
+          expectedDistance: comparison.expectedDistance, actualDistance: comparison.actualDistance,
+          positionDelta: comparison.positionDelta, targetDelta: comparison.targetDelta,
+          directionAngleDeg: comparison.directionAngle * 180 / Math.PI, upAngleDeg: comparison.upAngle * 180 / Math.PI,
+          distanceDelta: Math.abs(comparison.actualDistance - comparison.expectedDistance),
+          distanceChangedOnly: comparison.distanceChangedOnly, expectedPerspective: comparison.expectedDto.perspective,
+          actualPerspective: comparison.actualDto.perspective, allowedTargetTolerance: comparison.targetTolerance,
+          allowedAngularTolerance: comparison.angularTolerance, elapsedMs: Math.round(performance.now() - started),
+          result: comparison.accepted ? 'accepted' : 'rejected', rejectionReason: comparison.rejectionReason }));
+        if (!comparison.accepted) throw new Error('AR-ST camera comparison failed: ' + comparison.rejectionReason);
+        const state = JSON.parse(JSON.stringify(viewer.getState()));
+        const serializedComparison = compareArstCamera(state && state.viewport, viewport, pushpin, modelDiagonal);
+        if (!serializedComparison.accepted) throw new Error('AR-ST serialized camera comparison failed: ' + serializedComparison.rejectionReason);
+        progress('ARST_CAMERA_CAPTURE_OK');
+        return state;
+      } catch (error) {
+        progress('ARST_CAMERA_COMPARE | ' + JSON.stringify({ attempt: attempt + 1, snapshotId, result: 'rejected', rejectionReason: error.message,
+          elapsedMs: Math.round(performance.now() - started) }));
+        if (attempt === 0) { progress('ARST_CAMERA_RETRY'); continue; }
+        progress('ARST_CAMERA_CAPTURE_FAILED');
+        throw new Error('AR-ST CAMERA CAPTURE REJECTED: ' + error.message);
+      }
+    }
+  }
+
+  // Includes scene loading, snap/selection, state capture and failure cleanup.
+  // A second host invocation must not bypass the per-batch await loop.
+  let probeCameraQueue = Promise.resolve();
+  let probeCameraFailure = null;
+  function withProbeCamera(task) {
+    const result = probeCameraQueue.then(() => {
+      if (probeCameraFailure) throw new Error(probeCameraFailure);
+      return task();
+    });
+    probeCameraQueue = result.catch(() => {});
+    return result;
+  }
+
+  function buildViewport(bounds, center, localFocusRadius, pairBounds, pairAxis, modelCentre, preferredDirection, distanceOverride) {
+    const worldUp = viewer.navigation.getWorldUpVector().clone().normalize();
+
+    const elementDiagonal = Math.max(bounds.getSize(new THREE.Vector3()).length(), 1e-3);
+
+    // ---- where to look FROM -------------------------------------------------
+    //
+    // The direction used to be a constant: normalize(side * 0.75 + worldUp * 0.45),
+    // where side came from the world axes and never from the model. Every Issue of
+    // 05 Sep therefore stored the identical view direction [0, 0.8575, 0.5145] -
+    // the camera moved to each pin but always approached it from the same side,
+    // which reads as if it were not aiming at the clash at all.
+    //
+    // Looking ALONG the axis between the two elements puts one behind the other.
+    // Looking across it shows both meeting, so the approach is perpendicular to
+    // the pair axis, lifted by CAMERA_ELEVATION so the view is not edge-on.
+    const direction = preferredDirection
+      ? preferredDirection.clone().normalize()
+      : chooseViewDirection(worldUp, pairAxis, center, modelCentre, pairBounds || bounds);
+
+    // ---- how far ------------------------------------------------------------
+    //
+    // Frame the conflict, not the largest participant.
+    //
+    // 7.1.2 added an overlap term but kept a term for the whole primary element and
+    // took the maximum of the two, so the element always won: on 05 Sep #66 the
+    // primary was a 62 ft cable tray and the camera went to 81.3 ft, opening the
+    // Issue on a general view in which the clash is a speck. The element extent is
+    // now out of the calculation entirely - a 62 ft tray does not need to be seen
+    // end to end to judge where it hits something.
+    const fieldOfView = 45;
+    const sinHalfFov = Math.sin(fieldOfView * Math.PI / 360);
+
+    let focusDiagonal = Math.min(elementDiagonal, CLASH_FOCUS_MAX_FT);
+    if (pairBounds && !pairBounds.isEmptyBox) {
+      const overlapDiagonal = Math.max(pairBounds.getSize(new THREE.Vector3()).length(), 1e-3);
+      focusDiagonal = overlapDiagonal * CLASH_CONTEXT_FACTOR;
+    }
+    // localFocusRadius describes a surface separation that has to stay in frame,
+    // so it raises the floor but is still capped: it must not reintroduce a
+    // general view.
+    if (Number.isFinite(localFocusRadius))
+      focusDiagonal = Math.max(focusDiagonal, Math.min(localFocusRadius * 2, CLASH_FOCUS_MAX_FT));
+
+    focusDiagonal = Math.min(Math.max(focusDiagonal, CLASH_FOCUS_MIN_FT), CLASH_FOCUS_MAX_FT);
+    // Revit and the Viewer probe use feet. Keep the eye exactly two metres
+    // from the surface-aware pushpin, with the target at that same point.
+    const distance = Number.isFinite(distanceOverride) ? distanceOverride : 2 / 0.3048;
+
+    const eye = center.clone().add(direction.multiplyScalar(distance));
+    const viewDirection = center.clone().sub(eye).normalize();
+    // LMV requires an orthonormal camera basis. A world-up vector is not the
+    // camera-up vector whenever the camera looks up or down.
+    let cameraRight = new THREE.Vector3().crossVectors(viewDirection, worldUp);
+    if (cameraRight.lengthSq() < 1e-12) {
+      cameraRight = new THREE.Vector3().crossVectors(viewDirection, new THREE.Vector3(0, 1, 0));
+    }
+    cameraRight.normalize();
+    const up = new THREE.Vector3().crossVectors(cameraRight, viewDirection).normalize();
+    const basisDot = Math.abs(up.dot(viewDirection));
+    if (!Number.isFinite(basisDot) || basisDot > 1e-6)
+      throw new Error('CAMERA BASIS INVALID | dot(up, dir)=' + basisDot);
+    progress('CAMERA BASIS OK | dot(up, dir)=' + basisDot.toExponential(2));
+
+    return {
+      name: '',
+      eye: [eye.x, eye.y, eye.z],
+      target: [center.x, center.y, center.z],
+      up: [up.x, up.y, up.z],
+      worldUpVector: [worldUp.x, worldUp.y, worldUp.z],
+      pivotPoint: [center.x, center.y, center.z],
+      distanceToOrbit: distance,
+      aspectRatio: 1.7777777778,
+      projection: 'perspective',
+      isOrthographic: false,
+      fieldOfView: fieldOfView,
+      orthographicHeight: focusDiagonal
+    };
+  }
+
+  function matrixElements(matrix) {
+    return matrix && matrix.elements ? Array.from(matrix.elements) : null;
+  }
+
+  function pointOrNull(point) {
+    if (!point) return null;
+    const result = { x: Number(point.x), y: Number(point.y), z: Number(point.z) };
+    return [result.x, result.y, result.z].every(Number.isFinite) ? result : null;
+  }
+
+  function logArstCoordinateAudit(anchor, viewport, geometryBounds, modelBounds, anchorMethod, modelGlobalOffset) {
+    const camera = viewport && viewport.viewport ? viewport.viewport : viewport;
+    const modelDiagonal = modelBounds && !modelBounds.isEmptyBox
+      ? modelBounds.getSize(new THREE.Vector3()).length() : null;
+    const targetBoundsDistance = geometryBounds && typeof geometryBounds.distanceToPoint === 'function'
+      ? geometryBounds.distanceToPoint(anchor) : null;
+    progress('ARST_CAMERA_COORDINATE_AUDIT | ' + JSON.stringify({
+      coordinateSpace: 'current-viewer-scene', unit: 'feet',
+      linkedTransformApplied: /model-to-viewer-transform/.test(anchorMethod),
+      refPointTransformationApplied: false, globalOffsetApplied: false, globalOffsetApplyCount: 0,
+      targetSource: anchorMethod, pushpinViewer: anchor.toArray(), targetViewer: camera.target,
+      positionViewer: camera.eye, cameraDistance: camera.distanceToOrbit,
+      targetToElementBoundsDistance: targetBoundsDistance,
+      targetInsideOrNearBounds: Number.isFinite(targetBoundsDistance) &&
+        targetBoundsDistance <= PUSHPIN_SURFACE_OFFSET_FT + 0.01,
+      modelBoundsDiagonal: modelDiagonal, globalOffsetPresent: !!modelGlobalOffset
+    }));
+  }
+
+  function modelPointToViewer(model, modelPoint, globalOffset) {
+    const point = new THREE.Vector3(modelPoint.x, modelPoint.y, modelPoint.z);
+    try {
+      const transform = model && typeof model.getModelToViewerTransform === 'function'
+        ? model.getModelToViewerTransform()
+        : null;
+      if (transform) {
+        point.applyMatrix4(transform);
+        if ([point.x, point.y, point.z].every(Number.isFinite))
+          return { point, method: 'model-to-viewer-transform' };
+      }
+    } catch (_) { }
+    // A global offset alone cannot represent a rotated or translated Revit
+    // link. Reject this mapping unless Viewer supplies the full transform.
+    return { point, method: 'unmapped-pair-centre-fallback' };
+  }
+
+  // Model Derivative is served per data-residency region. ACC opens the model from
+  // the regional CDN, and every region has its own SVF2 index: the same element has a
+  // different dbId in each one. Probing the US index for a DEU project produced object
+  // ids that do not exist in the scene ACC loads, so selection and ghosting never
+  // switched on and the anchor was computed in a foreign frame.
+  const DERIVATIVE_ENDPOINTS = {
+    us: 'https://developer.api.autodesk.com',
+    emea: 'https://cdn.derivative.eu.autodesk.com',
+    eu: 'https://cdn.derivative.eu.autodesk.com',
+    deu: 'https://cdn.derivative.deu.autodesk.com',
+    de: 'https://cdn.derivative.deu.autodesk.com',
+    aus: 'https://cdn.derivative.aus.autodesk.com',
+    apac: 'https://cdn.derivative.aus.autodesk.com',
+    au: 'https://cdn.derivative.aus.autodesk.com'
+  };
+
+  function derivativeEndpointForRegion(region) {
+    const key = String(region || '').trim().toLowerCase();
+    return DERIVATIVE_ENDPOINTS[key] || DERIVATIVE_ENDPOINTS.us;
+  }
+
+  function currentDerivativeEndpoint() {
+    try {
+      const ep = Autodesk.Viewing.endpoint;
+      return {
+        endpoint: ep.getApiEndpoint ? ep.getApiEndpoint() : '',
+        apiFlavor: ep.getApiFlavor ? ep.getApiFlavor() : ''
+      };
+    } catch (_) { return { endpoint: '', apiFlavor: '' }; }
+  }
+
+  let otgAvailability = { otgNodeFound: false, otgStatus: '', otgUrn: '' };
+
+  async function loadProbeScene(request) {
+    progress('Initializing Autodesk Viewer 7 in streamingV2 mode.');
+    Autodesk.Viewing.FeatureFlags.set('DS_ENDPOINTS', true);
+    await new Promise((resolve, reject) => {
+      Autodesk.Viewing.Initializer({
+        env: 'AutodeskProduction2',
+        api: 'streamingV2',
+        getAccessToken: requestToken
+      }, resolve, reject);
+    });
+
+    const regionEndpoint = derivativeEndpointForRegion(request.derivativeRegion);
+    try {
+      Autodesk.Viewing.endpoint.setEndpointAndApi(regionEndpoint, 'streamingV2');
+    } catch (error) {
+      throw new Error('AR-ST PROBE ENDPOINT REJECTED: could not select the regional derivative endpoint ' +
+        regionEndpoint + ' for region "' + (request.derivativeRegion || '<none>') + '": ' +
+        (error && error.message ? error.message : String(error)));
+    }
+    progress('Derivative endpoint: ' + regionEndpoint + ' (region ' + (request.derivativeRegion || 'us') + ').');
+
+    viewer = new Autodesk.Viewing.GuiViewer3D(window.document.getElementById('viewer'));
+    const startCode = viewer.start();
+    if (startCode > 0) throw new Error('Viewer.start failed with code ' + startCode + '. WebGL may be unavailable.');
+
+    const documentId = 'urn:' + request.derivativeUrn;
+    const apsDocument = await loadDocument(documentId);
+    const node = selectExactViewable(apsDocument, request);
+    const loadedIdentity = nodeIdentity(node);
+
+    // Diagnostics only: record whether the document exposes an SVF2 (OTG) graphics
+    // node for this viewable. The flag differs between Viewer builds, so it is
+    // reported and never used to stop the run.
+    const otgNode = node.getOtgGraphicsNode ? node.getOtgGraphicsNode() : null;
+    otgAvailability = {
+      otgNodeFound: !!otgNode,
+      otgStatus: otgNode && otgNode.data ? String(otgNode.data.status || '') : '',
+      otgUrn: otgNode && otgNode.data ? String(otgNode.data.urn || '') : ''
+    };
+    if (!otgNode) {
+      // Not fatal on its own: the OTG node is an internal detail of the manifest and of
+      // the Viewer build. What matters is whether the dbId matches the scene ACC opens,
+      // and that is checked against the property database on the C# side.
+      progress('WARNING: no SVF2 (OTG) graphics node for viewable "' + (loadedIdentity.name || '') +
+        '". Continuing, the object id will be cross-checked against the property database.');
+    }
+    progress('Loading exact viewable: ' + JSON.stringify(loadedIdentity));
+    const rootModel = await viewer.loadDocumentNode(apsDocument, node, { keepCurrentModels: false });
+    await waitForModelReady(rootModel);
+    const sceneModels = await waitForSceneModels(rootModel);
+
+    return { loadedIdentity, sceneModels };
+  }
+
+  async function resolveLoadedProbe(scene, request) {
+    const captureClashCamera = request.highlightSecondary &&
+      (request.preferIntersectionAnchor || !request.preferSurfacePairAnchor);
+    const loadedIdentity = scene.loadedIdentity;
+    const sceneModels = scene.sceneModels;
+    progress('Resolving runtime dbId across ' + sceneModels.length + ' loaded scene model(s).');
+    // Each batch item starts from a known complete-view state. Selection and
+    // isolation are Viewer-global and otherwise leak from the previous row.
+    try { if (typeof viewer.clearSelection === 'function') viewer.clearSelection(); } catch (_) { }
+    try { if (typeof viewer.showAll === 'function') viewer.showAll(); } catch (_) { }
+    await delay(20);
+
+    const target = await resolveTargetModel(sceneModels, request);
+    const model = target.model;
+    const resolved = target.resolved;
+    const geometry = target.geometry;
+    const center = geometry.bounds.getCenter(new THREE.Vector3());
+    const modelData = model.getData ? model.getData() : null;
+    const modelGlobalOffset = modelData ? pointOrNull(modelData.globalOffset) : null;
+
+    let secondaryTarget = null;
+    if ((request.preferSurfacePairAnchor || request.highlightSecondary) && normalized(request.secondaryRequestedExternalId)) {
+      secondaryTarget = await resolveTargetModel(sceneModels, secondaryRequest(request));
+    }
+
+    let reference = center.clone();
+    // A secondary object requested only for highlighting must not influence the
+    // established Clash anchor. Pair geometry remains opt-in for AR-ST only.
+    if (request.preferSurfacePairAnchor && secondaryTarget) {
+      const secondaryCenter = secondaryTarget.geometry.bounds.getCenter(new THREE.Vector3());
+      reference.add(secondaryCenter).multiplyScalar(0.5);
+    }
+    let referenceMethod = 'pair-aabb-centre';
+    const preferredModelPoint = pointOrNull(request.preferredModelPoint);
+    if (request.preferSurfacePairAnchor && preferredModelPoint) {
+      const mappedReference = modelPointToViewer(model, preferredModelPoint, modelGlobalOffset);
+      if (mappedReference.method !== 'unmapped-pair-centre-fallback') {
+        reference.copy(mappedReference.point);
+        referenceMethod = mappedReference.method;
+      }
+    }
+
+    const exactIntersection = request.preferIntersectionAnchor;
+    const mappedIntersection = exactIntersection && preferredModelPoint
+      ? modelPointToViewer(model, preferredModelPoint, modelGlobalOffset) : null;
+    if (exactIntersection && (!mappedIntersection || mappedIntersection.method === 'unmapped-pair-centre-fallback'))
+      throw new Error('PUSHPIN_VALIDATION_REJECTED | exact Clash intersection has no valid model-to-viewer transform.');
+    let primaryProjection = exactIntersection ? null : projectPointToSurface(
+      target.model, target.ready.fragments, target.geometry.fragmentIds, reference, target.geometry.bounds);
+    let anchor = exactIntersection ? mappedIntersection.point.clone() : primaryProjection.point.clone();
+    let anchorMethod = exactIntersection
+      ? 'exact-solid-intersection-centroid/' + mappedIntersection.method
+      : referenceMethod + '/surface-primary-projection/' + primaryProjection.method;
+    let secondaryProjection = null;
+    if (request.preferSurfacePairAnchor && !exactIntersection) {
+      if (secondaryTarget) {
+        secondaryProjection = projectPointToSurface(
+          secondaryTarget.model, secondaryTarget.ready.fragments, secondaryTarget.geometry.fragmentIds,
+          reference, secondaryTarget.geometry.bounds);
+        anchor.add(secondaryProjection.point).multiplyScalar(0.5);
+        anchorMethod = referenceMethod + '/surface-pair-midpoint/' + primaryProjection.method + '+' + secondaryProjection.method;
+      }
+    }
+
+    const sampledTriangleCount = (primaryProjection ? primaryProjection.sampledTriangles : 0) +
+      (secondaryProjection ? secondaryProjection.sampledTriangles : 0);
+    let pushpinValidation = null;
+    if (exactIntersection) {
+      const unitScaleToMetres = Number(request.viewerUnitScaleToMeters);
+      if (!(unitScaleToMetres > 0) || !Number.isFinite(unitScaleToMetres))
+        throw new Error('PUSHPIN_VALIDATION_REJECTED | invalid Viewer unit scale.');
+      const toleranceViewer = 0.010 / unitScaleToMetres;
+      const maxCorrectionViewer = 0.050 / unitScaleToMetres;
+      pushpinValidation = validateClashPushpinAnchor(anchor, geometry.bounds,
+        secondaryTarget && secondaryTarget.geometry.bounds, toleranceViewer, maxCorrectionViewer,
+        sampledTriangleCount, true);
+      if (pushpinValidation.outcome === 'UnsafeCoordinateRejected')
+        throw new Error('PUSHPIN_VALIDATION_REJECTED | no safe finite Clash anchor.');
+      anchor.copy(pushpinValidation.anchor);
+      const correctionDistanceMm = pushpinValidation.correctionDistanceViewer * unitScaleToMetres * 1000;
+      progress('CLASH_PUSHPIN_VALIDATION | resultKey=' + String(request.resultKey || '').slice(0, 12) +
+        ' | revitIntersectionConfirmed=true | sampledTriangleCount=' + sampledTriangleCount +
+        ' | insidePrimary=' + String(pushpinValidation.insidePrimary) +
+        ' | insideSecondary=' + String(pushpinValidation.insideSecondary) +
+        ' | toleranceMm=10 | correctionApplied=' + String(pushpinValidation.correctionApplied) +
+        ' | correctionDistanceMm=' + correctionDistanceMm.toFixed(3) +
+        ' | outcome=' + pushpinValidation.outcome);
+    }
+
+    // Compute one local Clash frame before moving the pin. The same approach
+    // vector is then used to expose the pin and to place the camera, guaranteeing
+    // that opaque geometry cannot remain between the camera and its target.
+    const pairBounds = secondaryTarget
+      ? boundsOverlap(geometry.bounds, secondaryTarget.geometry.bounds)
+      : null;
+    const pairAxis = secondaryTarget
+      ? secondaryTarget.geometry.bounds.getCenter(new THREE.Vector3())
+          .sub(geometry.bounds.getCenter(new THREE.Vector3()))
+      : null;
+    const modelCentre = (() => {
+      try {
+        const box = model.getBoundingBox();
+        return box ? box.getCenter(new THREE.Vector3()) : null;
+      } catch (e) { return null; }
+    })();
+    const worldUp = viewer.navigation.getWorldUpVector().clone().normalize();
+    const clashCamera = exactIntersection
+      ? chooseClashCameraDirection(anchor, pairAxis, worldUp, geometry.bounds,
+          secondaryTarget && secondaryTarget.geometry.bounds, resolved.dbId,
+          secondaryTarget && secondaryTarget.resolved.dbId, model, secondaryTarget && secondaryTarget.model, modelCentre) : null;
+    const cameraDirection = exactIntersection
+      ? clashCamera.direction
+      : chooseViewDirection(worldUp, pairAxis, anchor, modelCentre, pairBounds || geometry.bounds);
+
+    // Put the pin ON the element, the way ACC does it.
+    //
+    // Everything above works from bounding boxes: projectPointToSurface falls back
+    // to projectPointToAabbSurface whenever the SVF2 triangle buffers are not
+    // readable, which on a federated model with linked geometry is every time -
+    // "Sampled triangle count: 0" in every log to date. A point on an AABB face is
+    // not a point on a pipe, a duct or a sloped slab, so the marker ends up beside
+    // the element rather than attached to it, and ACC has no object to navigate to.
+    // Dragging the pin by hand fixes it precisely because ACC hit-tests real
+    // geometry and snaps onto the surface.
+    //
+    // So do what ACC does: isolate the element, aim at it, and let the viewer's own
+    // raycaster produce the point. A hit is on real geometry by construction, and
+    // no outward offset is needed - the marker is a screen-space billboard drawn
+    // over the surface, which is how the platform's own pins sit.
+    const snapped = exactIntersection ? null : await snapAnchorToGeometry(anchor, cameraDirection, resolved.dbId, geometry.bounds, pairBounds);
+    if (exactIntersection) {
+      progress('PUSHPIN ANCHOR EXACT INTERSECTION | ' + anchor.toArray().map(v => v.toFixed(6)).join(', '));
+    } else if (snapped) {
+      anchor.copy(snapped);
+      anchorMethod += '/hit-test-snapped';
+    } else if (!captureClashCamera) {
+      // AR-ST fallback starts at the closest surface in the same Viewer-local
+      // frame as the fragment bounds. Walking along the camera ray through a
+      // long slab can move the pin several metres from the selected element.
+      const bounds = geometry.bounds;
+      const surface = projectPointToAabbSurface(anchor, bounds);
+      const candidate = surface.clone().add(cameraDirection.clone().normalize()
+        .multiplyScalar(PUSHPIN_SURFACE_OFFSET_FT));
+      anchor.copy(bounds.distanceToPoint(candidate) <= PUSHPIN_SURFACE_OFFSET_FT + 0.01
+        ? candidate : surface);
+      anchorMethod += '/nearest-primary-aabb-surface';
+    } else {
+      // Preserve the established Clash camera and anchor behaviour.
+      const outward = cameraDirection;
+      const bounds = geometry.bounds;
+      const insidePrimary = bounds.containsPoint(anchor);
+      if (insidePrimary) {
+        const exit = exitDistanceAlong(anchor, outward, bounds);
+        if (Number.isFinite(exit)) anchor.add(outward.clone().multiplyScalar(exit));
+        else anchor.copy(projectPointToAabbSurface(anchor, bounds));
+      }
+      anchor.add(outward.clone().multiplyScalar(PUSHPIN_SURFACE_OFFSET_FT));
+      anchorMethod += '/surface-offset-0.25ft';
+    }
+
+    if (![anchor.x, anchor.y, anchor.z].every(Number.isFinite))
+      throw new Error('Surface-aware pushpin anchor contains non-finite coordinates.');
+    if (!captureClashCamera &&
+        geometry.bounds.distanceToPoint(anchor) > PUSHPIN_SURFACE_OFFSET_FT + 0.01)
+      throw new Error('PushpinGeometryUnresolved | AR-ST anchor is outside selected fragment bounds.');
+
+    const surfaceSeparation = primaryProjection && secondaryProjection
+      ? primaryProjection.point.distanceTo(secondaryProjection.point)
+      : 0;
+    const localFocusRadius = request.preferSurfacePairAnchor
+      ? Math.min(Math.max(surfaceSeparation * 4, 2.0), 4.0)
+      : null;
+
+    // Compute the desired local frame from the final snapped pushpin.
+    // Clash captures the actual camera only after selection and stabilization.
+    const viewport = buildViewport(
+      geometry.bounds, anchor, localFocusRadius, pairBounds, pairAxis, modelCentre, cameraDirection,
+      exactIntersection ? clashCamera.distanceFt : null);
+    if (!captureClashCamera) {
+      let modelBounds = null;
+      try { modelBounds = model.getBoundingBox ? model.getBoundingBox() : null; } catch (_) { }
+      logArstCoordinateAudit(anchor, viewport, geometry.bounds, modelBounds, anchorMethod, modelGlobalOffset);
+    }
+    // Select the resolved object in the actual Viewer scene before capturing state.
+    // Each batch item starts with clearSelection/showAll above, so selection cannot
+    // leak from the previous row. Do not call fitToView or isolate here: the camera
+    // and anchor remain controlled by the surface-aware algorithm below.
+    const issueCamera = captureClashCamera ? null : arstCameraState(viewport);
+    const arstSnapshotId = captureClashCamera ? null : ('arst-' + Date.now() + '-' + resolved.dbId);
+    const arstModelDiagonal = model && model.getBoundingBox
+      ? (() => { try { const box = model.getBoundingBox(); return box ? box.getSize(new THREE.Vector3()).length() : null; } catch (_) { return null; } })()
+      : null;
+    // Clash captures through its existing perspective lifecycle. AR-ST applies
+    // and validates its legacy viewport only after selection via captureArstCamera.
+    // A Clash consists of two objects and may span two loaded Viewer models.
+    // setAggregateSelection is the only safe route for that case because dbIds
+    // are model-local and may collide between federated models.
+    const aggregateSelection = [{ model, ids: [resolved.dbId] }];
+    if (request.highlightSecondary && secondaryTarget) {
+      const sameModel = secondaryTarget.model === model;
+      if (sameModel) {
+        if (!aggregateSelection[0].ids.includes(secondaryTarget.resolved.dbId))
+          aggregateSelection[0].ids.push(secondaryTarget.resolved.dbId);
+      } else {
+        aggregateSelection.push({ model: secondaryTarget.model, ids: [secondaryTarget.resolved.dbId] });
+      }
+    }
+    if (typeof viewer.setAggregateSelection === 'function') {
+      viewer.setAggregateSelection(aggregateSelection);
+    } else if (aggregateSelection.length === 1) {
+      viewer.select(aggregateSelection[0].ids, model);
+    } else {
+      throw new Error('Viewer does not support aggregate selection for a cross-model Clash.');
+    }
+    viewer.impl.invalidate(true, true, true);
+    await delay(60);
+
+    const expectedSelectionCount = aggregateSelection.reduce((sum, item) => sum + item.ids.length, 0);
+    let retainedSelectionCount = 0;
+    if (typeof viewer.getAggregateSelection === 'function') {
+      const retained = viewer.getAggregateSelection() || [];
+      for (const expected of aggregateSelection) {
+        const actual = retained.find(item => item && item.model === expected.model);
+        const ids = actual && Array.isArray(actual.selection) ? actual.selection : [];
+        if (!expected.ids.every(id => ids.includes(id)))
+          throw new Error('Viewer did not retain every selected Clash dbId before state capture.');
+        retainedSelectionCount += expected.ids.length;
+      }
+    } else {
+      const selectedIds = typeof viewer.getSelection === 'function' ? viewer.getSelection(model) : [];
+      if (!aggregateSelection[0].ids.every(id => selectedIds.includes(id)))
+        throw new Error('Viewer did not retain every selected Clash dbId before state capture.');
+      retainedSelectionCount = aggregateSelection[0].ids.length;
+    }
+    if (retainedSelectionCount !== expectedSelectionCount)
+      throw new Error('Viewer retained an incomplete Clash selection.');
+
+    const viewerState = captureClashCamera
+      ? await captureIssueCamera(viewport, anchor.toArray())
+      : await captureArstCamera(issueCamera, anchor.toArray(), arstModelDiagonal, arstSnapshotId);
+    if (!viewerState || !viewerState.objectSet)
+      throw new Error('viewer.getState() returned an incomplete state.');
+
+    // Reject a stale navigation state instead of publishing a known bad camera.
+    // Selection/render state still comes from Viewer, while all camera geometry
+    // and local framing originate from the final pushpin, never the snap camera.
+    if (!captureClashCamera) viewerState.viewport = viewerState.viewport;
+    progress('CAMERA CAPTURED FROM VIEWER | projection=' + viewerState.viewport.projection +
+      '; orthographicHeight=' + viewerState.viewport.orthographicHeight +
+      '; fieldOfView=' + viewerState.viewport.fieldOfView);
+    progress('CAMERA VERIFIED | computed eye/target/up and local scale retained; snap camera excluded.');
+    // getState() may include an AutoCam destination inherited from the initially
+    // loaded published view. ACC can restore that destination after viewport and
+    // make every Issue appear to use the same camera. The Issue needs the explicit
+    // viewport above, not a second competing camera state.
+    delete viewerState.autocam;
+
+    // Any section plane left over from an earlier probe in the same batch would be
+    // restored with the Issue and could hide the very element it points at.
+    viewerState.cutplanes = [];
+
+    // Preserve the model-qualified entries emitted by getState(). Flattening a
+    // federated selection into one entry loses the second model and can select an
+    // unrelated object when two models reuse the same dbId.
+    viewerState.objectSet = viewerState.objectSet
+      .filter(entry => entry && Array.isArray(entry.id) && entry.id.length > 0)
+      .map(entry => Object.assign({}, entry, {
+        isolated: entry.id.slice(),
+        hidden: [],
+        idType: entry.idType || 'lmv',
+        explodeScale: 0,
+        explodeOptions: entry.explodeOptions || { magnitude: 4, depthDampening: 0 }
+      }));
+    const capturedSelectionCount = viewerState.objectSet.reduce((sum, entry) => sum + entry.id.length, 0);
+    if (capturedSelectionCount < expectedSelectionCount)
+      throw new Error('viewer.getState() omitted one or more selected Clash objects.');
+
+    // Keep the complete coordination model visible as ghosted context around the
+    // selected, isolated target.
+    // These names deliberately match the keys emitted by Viewer getState().
+    viewerState.renderOptions = Object.assign({}, viewerState.renderOptions, {
+      appearance: Object.assign({}, (viewerState.renderOptions || {}).appearance, {
+        ghostHidden: true,
+        displayLines: true,
+        ambientShadow: true
+      })
+    });
+    // Position and viewport remain viewer-local in 7.0.19. Preserve the Viewer's
+    // original globalOffset unchanged so ACC can restore that local frame; do not
+    // add or scale it in this appearance-only patch.
+    if (modelGlobalOffset) {
+      viewerState.globalOffset = {
+        x: modelGlobalOffset.x,
+        y: modelGlobalOffset.y,
+        z: modelGlobalOffset.z
+      };
+    }
+    let modelToViewerTransform = null;
+    let placementTransform = null;
+    try { modelToViewerTransform = matrixElements(model.getModelToViewerTransform()); } catch (_) { }
+    try { placementTransform = matrixElements(model.getPlacementTransform()); } catch (_) { }
+
+    return {
+      dbId: resolved.dbId,
+      resolvedExternalId: resolved.externalId,
+      mappingDirection: resolved.direction,
+      fragmentIds: geometry.fragmentIds,
+      boundsMin: pointOrNull(geometry.bounds.min),
+      boundsMax: pointOrNull(geometry.bounds.max),
+      center: pointOrNull(center),
+      anchor: pointOrNull(anchor),
+      anchorMethod,
+      primarySurfacePoint: primaryProjection ? pointOrNull(primaryProjection.point) : null,
+      secondarySurfacePoint: secondaryProjection ? pointOrNull(secondaryProjection.point) : null,
+      sampledTriangleCount,
+      pushpinValidationOutcome: pushpinValidation ? pushpinValidation.outcome : '',
+      insidePrimary: pushpinValidation ? pushpinValidation.insidePrimary : null,
+      insideSecondary: pushpinValidation ? pushpinValidation.insideSecondary : null,
+      correctionApplied: pushpinValidation ? pushpinValidation.correctionApplied : false,
+      correctionDistanceMm: pushpinValidation
+        ? pushpinValidation.correctionDistanceViewer * Number(request.viewerUnitScaleToMeters) * 1000 : 0,
+      cameraQuality: clashCamera ? clashCamera.quality : '',
+      // Without these the AR-ST anchor cannot be reasoned about from a log: whether
+      // a surface point sits on the secondary element or merely coincides with the
+      // primary's own face is undecidable, and the AABB overlap of the pair - the
+      // most plausible place to anchor - cannot be computed at all.
+      secondaryBoundsMin: secondaryTarget ? pointOrNull(secondaryTarget.geometry.bounds.min) : null,
+      secondaryBoundsMax: secondaryTarget ? pointOrNull(secondaryTarget.geometry.bounds.max) : null,
+      secondaryDbId: secondaryTarget ? secondaryTarget.resolved.dbId : 0,
+      secondaryLoadedModelId: secondaryTarget
+        ? String(secondaryTarget.model.id == null ? '' : secondaryTarget.model.id)
+        : '',
+      secondaryResolvedExternalId: secondaryTarget ? secondaryTarget.resolved.externalId : '',
+      secondaryFragmentIds: secondaryTarget ? secondaryTarget.geometry.fragmentIds : [],
+      viewerState,
+      stateGlobalOffset: viewerState.globalOffset || null,
+      modelGlobalOffset,
+      modelToViewerTransform,
+      placementTransform,
+      loadedViewableGuid: loadedIdentity.guid,
+      loadedViewableId: loadedIdentity.viewableId,
+      loadedViewableName: loadedIdentity.name,
+      derivativeRegion: request.derivativeRegion || '',
+      derivativeEndpoint: currentDerivativeEndpoint().endpoint,
+      apiFlavor: currentDerivativeEndpoint().apiFlavor,
+      isOtg: !!(modelData && modelData.isOTG) || !!otgAvailability.otgNodeFound,
+      otgNodeFound: !!otgAvailability.otgNodeFound,
+      otgStatus: otgAvailability.otgStatus,
+      // Fingerprint of the scene the probe actually worked in. Compare with the ACC
+      // session (viewer.model.getFragmentList().getCount() and getInstanceTree()) to
+      // prove both sides loaded the same derivative.
+      sceneFragmentCount: (function () { try { return model.getFragmentList().getCount(); } catch (_) { return -1; } })(),
+      sceneNodeCount: (function () { try { var t = model.getInstanceTree(); return t && t.getNumNodes ? t.getNumNodes() : -1; } catch (_) { return -1; } })(),
+      loadedModelId: String(model.id == null ? '' : model.id),
+      loadedModelUrn: modelData && modelData.urn ? String(modelData.urn) : '',
+      sceneModelCount: sceneModels.length
+    };
+  }
+
+  async function runProbe(request) {
+    return withProbeCamera(async () => {
+      const scene = await loadProbeScene(request);
+      return resolveLoadedProbe(scene, request);
+    });
+  }
+
+  async function runProbeBatch(requests) {
+    return withProbeCamera(async () => {
+    if (!Array.isArray(requests) || requests.length === 0) throw new Error('Viewer probe batch is empty.');
+    const scene = await loadProbeScene(requests[0]);
+    const outcomes = [];
+    for (let index = 0; index < requests.length; index++) {
+      if (probeCameraFailure) {
+        outcomes.push({ index, result: null, error: probeCameraFailure, stack: '' });
+        continue;
+      }
+      progress('BATCH ITEM BEGIN | index=' + index);
+      try {
+        const result = await resolveLoadedProbe(scene, requests[index]);
+        progress('BATCH ITEM CAPTURED | index=' + index);
+        outcomes.push({ index, result, error: '' });
+      } catch (error) {
+        progress('BATCH ITEM FAILED | index=' + index + '; ' + (error && error.message ? error.message : String(error)));
+        outcomes.push({
+          index,
+          result: null,
+          error: 'Batch item ' + index + ': ' + (error && error.message ? error.message : String(error)),
+          stack: error && error.stack ? error.stack : ''
+        });
+      }
+    }
+    return outcomes;
+    });
+  }
+
+  window.__startProbe = request => {
+    runProbe(request)
+      .then(result => post({ type: 'result', result }))
+      .catch(error => post({
+        type: 'error',
+        message: error && error.message ? error.message : String(error),
+        stack: error && error.stack ? error.stack : ''
+      }));
+  };
+
+  window.__startProbeBatch = requests => {
+    runProbeBatch(requests)
+      .then(outcomes => post({ type: 'batch-result', outcomes }))
+      .catch(error => post({
+        type: 'error',
+        message: error && error.message ? error.message : String(error),
+        stack: error && error.stack ? error.stack : ''
+      }));
+  };
+
+  post({ type: 'ready' });
+})();
+</script>
+</body>
+</html>

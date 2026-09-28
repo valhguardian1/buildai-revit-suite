@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "maxFiles": 25,
+  "maxAddedLines": 2000,
+  "allowedExtensions": [
+    ".cs", ".csproj", ".props", ".targets", ".ps1", ".html", ".js",
+    ".json", ".xml", ".wxs", ".resx", ".md", ".txt", ".addin"
+  ],
+  "testRoutes": [
+    {
+      "pathRegex": "(?i)(ViewerProbe|camera|pushpin)",
+      "tests": [
+        "tools/Test-ViewerCoordinateProbe.ps1",
+        "tools/Test-AnchorProbe.ps1",
+        "tools/Test-CameraFocusContract.ps1",
+        "tools/Test-SurfaceAwareArStPushpins.ps1",
+        "tools/Test-Version7_1_0.ps1"
+      ]
+    },
+    {
+      "pathRegex": "(?i)(APS|Publishing|Publication)",
+      "tests": [
+        "tools/Test-NativeApsPublication.ps1",
+        "tools/Test-ApsViewableIdentity.ps1",
+        "tools/Test-ApsObjectIdentity.ps1",
+        "tools/Test-ApsTransientNetworkRetry.ps1"
+      ]
+    },
+    {
+      "pathRegex": "(?i)(Issue|Clash)",
+      "tests": [
+        "tools/Test-IssueCheckboxSelection.ps1",
+        "tools/Test-ChunkedClash.ps1",
+        "tools/Test-HighlightAndCompactLlmLog.ps1"
+      ]
+    }
+  ]
+}

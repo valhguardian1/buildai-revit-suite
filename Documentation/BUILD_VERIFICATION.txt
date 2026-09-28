@@ -1,0 +1,12 @@
+BuildAI 7.4 / ACC Issue Return 1.1 autonomous build verification
+UTC: 2026-09-26T21:17:15.2786392Z
+Main canonical Verify: passed; run 20260926T211347563Z
+Main and ACC restore/clean/build: Revit 2023, 2024, 2025, 2026
+ACC build runs its unit tests and MSI package/BAML/upgrade table checks.
+Main MSI file inventory and all four Revit features checked by canonical Verify.
+Main DLL FileVersion: 7.4.0.0
+ACC DLL FileVersion: 1.1.0.0
+Both attached Burn EXEs: extraction, embedded MSI SHA-256, all ICO resource images and isolated /layout execution passed.
+Run tools/Test-ReleaseInstallers.ps1 under PowerShell 7 for final artifact ProductVersion and icon inspection.
+Revit launch, browser failure, actual install/upgrade/downgrade/uninstall require host smoke testing.
+Main and ACC binaries/installers are unsigned.

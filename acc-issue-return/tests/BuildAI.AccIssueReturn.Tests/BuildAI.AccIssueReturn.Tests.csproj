@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><AssemblyName>BuildAI.AccIssueReturn.Tests</AssemblyName><RootNamespace>BuildAI.AccIssueReturn.Tests</RootNamespace></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\..\src\BuildAI.AccIssueReturn.Core\BuildAI.AccIssueReturn.Core.csproj" /></ItemGroup>
+</Project>

@@ -1,0 +1,45 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>BuildAI.Plugin2.VolumeEstimator</AssemblyName>
+    <RootNamespace>Plugin2.VolumeEstimator</RootNamespace>
+    <!-- TargetFramework / RevitVersion come from Directory.Build.props per config. -->
+    <!-- Ship transitive deps (Newtonsoft.Json) next to the DLL. On net8 libraries
+         don't copy NuGet deps by default; the plugin is host-loaded, so it must. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BuildAI.Core\BuildAI.Core.csproj" />
+  </ItemGroup>
+
+  <!--
+    .NET Framework 4.8 (Revit 2023/2024) does not auto-reference System.Net.Http,
+    but the Core transport constructor exposes HttpClient. Add it for net48 only;
+    on net8 it is built in.
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <!--
+    Revit API references via the community NuGet packages, version-matched to
+    $(RevitVersion). Private=false is implied by the Nice3point packages so the
+    Revit-owned assemblies are NOT copied to the output (Revit loads its own).
+  -->
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- Ship the .addin next to the DLL; copy icons to the output. -->
+  <ItemGroup>
+    <Compile Include="..\RevitCompat.Shared\ElementIdCompatibility.cs" Link="Compatibility\ElementIdCompatibility.cs" />
+    <Compile Include="..\RevitCompat.Shared\CoordinationViewVisibility.cs" Link="Compatibility\CoordinationViewVisibility.cs" />
+    <None Include="Plugin2.addin" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Resources\icons\**\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Resources\BuildAI.png" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+<g stroke="#2B2F36">
+<path d="M2.5 1.5 H8.5 L11.5 4.5 V14.5 H2.5 Z" stroke-width="3"/>
+<line x1="4.5" y1="6.5" x2="7.5" y2="6.5" stroke-width="3"/>
+<line x1="4.5" y1="9.5" x2="5.5" y2="9.5" stroke-width="3"/>
+</g>
+<path d="M2.5 1.5 H8.5 L11.5 4.5 V14.5 H2.5 Z" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="4.5" y1="6.5" x2="7.5" y2="6.5" stroke="#FFFFFF" stroke-width="1"/>
+<line x1="4.5" y1="9.5" x2="5.5" y2="9.5" stroke="#FFFFFF" stroke-width="1"/>
+<g stroke="#2B2F36">
+<path d="M11.5 7 L15 14 H8 Z" fill="#2B2F36" stroke-width="2"/>
+</g>
+<path d="M11.5 7 L15 14 H8 Z" fill="#3186F6"/>
+</svg>

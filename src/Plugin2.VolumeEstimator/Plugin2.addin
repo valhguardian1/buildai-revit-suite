@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BuildAI release 7.3.3 -->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>BuildAI - Volume Estimator</Name>
+    <!-- Path is resolved relative to this .addin file's folder. -->
+    <Assembly>BuildAI.Plugin2.VolumeEstimator.dll</Assembly>
+    <AddInId>4A8D2B31-6C7F-4E1B-8D22-1B2C3D4E5F62</AddInId>
+    <FullClassName>Plugin2.VolumeEstimator.Revit.Application</FullClassName>
+    <VendorId>BUILDAI</VendorId>
+    <VendorDescription>BuildAI, https://app.buildai.me</VendorDescription>
+  </AddIn>
+</RevitAddIns>

@@ -1,0 +1,22 @@
+[
+  {
+    "category": "Walls",
+    "material_name": "Concrete - Cast In Situ",
+    "material_class": "Concrete",
+    "level": "Level 03",
+    "volume_m3": 14.82,
+    "area_m2": 61.75,
+    "count": 7,
+    "section": "Core"
+  },
+  {
+    "category": "Floors",
+    "material_name": "Screed",
+    "material_class": "Cementitious",
+    "level": "Level 03",
+    "volume_m3": 9.10,
+    "area_m2": 182.0,
+    "count": 3,
+    "section": "Slab A"
+  }
+]

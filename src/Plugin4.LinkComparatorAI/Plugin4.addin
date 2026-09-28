@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BuildAI release 7.3.3 -->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>BuildAI - Link Comparator + AI</Name>
+    <Assembly>BuildAI.Plugin4.LinkComparatorAI.dll</Assembly>
+    <AddInId>6CA04D53-8E9B-403D-AF44-3D4E5F607184</AddInId>
+    <FullClassName>Plugin4.LinkComparatorAI.Revit.Application</FullClassName>
+    <VendorId>BUILDAI</VendorId>
+    <VendorDescription>BuildAI, https://app.buildai.me</VendorDescription>
+  </AddIn>
+</RevitAddIns>

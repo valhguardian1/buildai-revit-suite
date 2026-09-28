@@ -1,0 +1,13 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal">
+  <Bundle Name="BuildAI ACC Issue Return" Manufacturer="BuildAI" Version="$(var.BundleVersion)"
+          UpgradeCode="A9F5CF6F-033F-4ECD-8476-B9F43ABEDCD9" Compressed="yes"
+          IconSourceFile="assets\BuildAI_Setup.ico" HelpUrl="https://app.buildai.me/support">
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication LicenseUrl="" Theme="hyperlinkLicense"
+          LogoFile="assets\BuildAI.png" SuppressOptionsUI="yes" />
+    </BootstrapperApplication>
+    <Chain>
+      <MsiPackage Id="BuildAIReturn" SourceFile="$(var.MsiPath)" Compressed="yes" Vital="yes" />
+    </Chain>
+  </Bundle>
+</Wix>

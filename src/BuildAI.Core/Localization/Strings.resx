@@ -1,0 +1,413 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Ribbon_Tab" xml:space="preserve">
+    <value>BuildAI</value>
+  </data>
+  <data name="Ribbon_Panel_Analytics" xml:space="preserve">
+    <value>Analytics</value>
+  </data>
+  <data name="Btn_Connect" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="Btn_Pause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="Btn_Resume" xml:space="preserve">
+    <value>Resume</value>
+  </data>
+  <data name="Btn_Status" xml:space="preserve">
+    <value>Session</value>
+  </data>
+  <data name="Status_Connected" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="Status_Disconnected" xml:space="preserve">
+    <value>Not connected</value>
+  </data>
+  <data name="Status_Paused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="Status_ActiveTime" xml:space="preserve">
+    <value>Active time</value>
+  </data>
+  <data name="Status_EventsSent" xml:space="preserve">
+    <value>Events sent</value>
+  </data>
+  <data name="Status_Pending" xml:space="preserve">
+    <value>Pending (offline)</value>
+  </data>
+  <data name="Token_Prompt" xml:space="preserve">
+    <value>Enter your BuildAI API token</value>
+  </data>
+  <data name="Token_Saved" xml:space="preserve">
+    <value>Token saved securely.</value>
+  </data>
+  <data name="Token_Missing" xml:space="preserve">
+    <value>No BuildAI token set. Click Connect to enter it.</value>
+  </data>
+  <data name="Ribbon_Panel_Volumes" xml:space="preserve">
+    <value>Volumes</value>
+  </data>
+  <data name="Btn_Calculate" xml:space="preserve">
+    <value>Recalculate</value>
+  </data>
+  <data name="Btn_OpenBuildAI" xml:space="preserve">
+    <value>Open in BuildAI</value>
+  </data>
+  <data name="Vol_ResultsTitle" xml:space="preserve">
+    <value>Volume Estimation</value>
+  </data>
+  <data name="Vol_ColCategory" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="Vol_ColVolume" xml:space="preserve">
+    <value>Volume (m³)</value>
+  </data>
+  <data name="Vol_ColCount" xml:space="preserve">
+    <value>Count</value>
+  </data>
+  <data name="Vol_Elements" xml:space="preserve">
+    <value>Elements scanned</value>
+  </data>
+  <data name="Vol_Counted" xml:space="preserve">
+    <value>Counted</value>
+  </data>
+  <data name="Vol_Sources" xml:space="preserve">
+    <value>Models</value>
+  </data>
+  <data name="Vol_DupWarning" xml:space="preserve">
+    <value>⚠ Some models' discipline could not be determined — their volumes are counted as-is, so duplicates across AR/ST may not be removed. Set a discipline override in config or rename the link files.</value>
+  </data>
+  <data name="Vol_Rows" xml:space="preserve">
+    <value>Groups</value>
+  </data>
+  <data name="Vol_Sent" xml:space="preserve">
+    <value>Sent to BuildAI</value>
+  </data>
+  <data name="Vol_NoDoc" xml:space="preserve">
+    <value>Open a project first.</value>
+  </data>
+  <data name="Vol_PublishUploading" xml:space="preserve">
+    <value>The Revit view is being sent to BuildAI together with the material recalculation...</value>
+  </data>
+  <data name="Vol_PublishReady" xml:space="preserve">
+    <value>BuildAI Viewer link:</value>
+  </data>
+  <data name="Vol_PublishWait10" xml:space="preserve">
+    <value>After upload, processing can take up to 10 minutes before the view is displayed correctly in BuildAI.</value>
+  </data>
+  <data name="Vol_PublishFailed" xml:space="preserve">
+    <value>The material calculation completed, but the Revit view could not be sent to BuildAI.</value>
+  </data>
+  <data name="Ribbon_Panel_LinkMonitor" xml:space="preserve">
+    <value>Link Monitor</value>
+  </data>
+  <data name="Btn_CheckLinks" xml:space="preserve">
+    <value>Check links</value>
+  </data>
+  <data name="Btn_Changes" xml:space="preserve">
+    <value>Changes</value>
+  </data>
+  <data name="P3_Title" xml:space="preserve">
+    <value>Linked Model Changes</value>
+  </data>
+  <data name="P3_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="P3_All" xml:space="preserve">
+    <value>All changes</value>
+  </data>
+  <data name="P3_Added" xml:space="preserve">
+    <value>Added</value>
+  </data>
+  <data name="P3_Modified" xml:space="preserve">
+    <value>Modified</value>
+  </data>
+  <data name="P3_Deleted" xml:space="preserve">
+    <value>Deleted</value>
+  </data>
+  <data name="P3_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="P3_Highlight" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="P3_Reset" xml:space="preserve">
+    <value>Reset selection</value>
+  </data>
+  <data name="P3_Export" xml:space="preserve">
+    <value>Export to Excel</value>
+  </data>
+  <data name="Ribbon_Panel_Comparator" xml:space="preserve">
+    <value>Link Comparator + AI</value>
+  </data>
+  <data name="Btn_Compare" xml:space="preserve">
+    <value>Compare
+AR / ST</value>
+  </data>
+  <data name="Btn_Rooms" xml:space="preserve">
+    <value>Room
+heights</value>
+  </data>
+  <data name="Btn_Results" xml:space="preserve">
+    <value>Results</value>
+  </data>
+  <data name="Btn_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="P4_Title" xml:space="preserve">
+    <value>AR / ST COMPLIANCE CHECK</value>
+  </data>
+  <data name="P4_Critical" xml:space="preserve">
+    <value>Critical</value>
+  </data>
+  <data name="P4_Important" xml:space="preserve">
+    <value>Important</value>
+  </data>
+  <data name="P4_Minor" xml:space="preserve">
+    <value>Minor</value>
+  </data>
+  <data name="P4_Severity" xml:space="preserve">
+    <value>Severity</value>
+  </data>
+  <data name="P4_CheckType" xml:space="preserve">
+    <value>Check type</value>
+  </data>
+  <data name="P4_Level" xml:space="preserve">
+    <value>Level</value>
+  </data>
+  <data name="P4_Category" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="P4_Issue" xml:space="preserve">
+    <value>Mismatch</value>
+  </data>
+  <data name="P4_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="P4_Recommendation" xml:space="preserve">
+    <value>Recommendation</value>
+  </data>
+  <data name="P4_AiResult" xml:space="preserve">
+    <value>AI result</value>
+  </data>
+  <data name="P4_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="P4_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="P4_Highlight" xml:space="preserve">
+    <value>Highlight</value>
+  </data>
+  <data name="P4_Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="P4_RunAi" xml:space="preserve">
+    <value>Run AI</value>
+  </data>
+  <data name="P4_Export" xml:space="preserve">
+    <value>Export CSV</value>
+  </data>
+  <data name="P4_Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="P4_Comparing" xml:space="preserve">
+    <value>Comparing...</value>
+  </data>
+  <data name="P4_AiRunning" xml:space="preserve">
+    <value>Running AI...</value>
+  </data>
+  <data name="P4_AiCompleted" xml:space="preserve">
+    <value>AI analysis completed.</value>
+  </data>
+  <data name="P4_Saved" xml:space="preserve">
+    <value>Report saved.</value>
+  </data>
+  <data name="P4_NotFound" xml:space="preserve">
+    <value>Element cannot be located.</value>
+  </data>
+  <data name="P4_Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Common_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="Common_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Ribbon_Panel_Clash" xml:space="preserve">
+    <value>Clash + Forma</value>
+  </data>
+  <data name="Btn_FindClashes" xml:space="preserve">
+    <value>Find
+clashes</value>
+  </data>
+  <data name="Btn_CreateViews" xml:space="preserve">
+    <value>Create
+views</value>
+  </data>
+  <data name="Btn_PublishBuildAI" xml:space="preserve">
+    <value>Publish
+BuildAI</value>
+  </data>
+  <data name="P5_ResultsTitle" xml:space="preserve">
+    <value>Clashes</value>
+  </data>
+  <data name="P5_SettingsTitle" xml:space="preserve">
+    <value>BuildAI settings</value>
+  </data>
+  <data name="P5_Clearance" xml:space="preserve">
+    <value>Clash clearance, mm</value>
+  </data>
+  <data name="P5_Token" xml:space="preserve">
+    <value>Bearer token</value>
+  </data>
+  <data name="P5_DeleteToken" xml:space="preserve">
+    <value>Delete token</value>
+  </data>
+  <data name="P5_PublishTitle" xml:space="preserve">
+    <value>Publish model to BuildAI</value>
+  </data>
+  <data name="P5_Publish" xml:space="preserve">
+    <value>Publish</value>
+  </data>
+  <data name="Issue_Title_ArSt" xml:space="preserve">
+    <value>{0} in {1} does not match {2} in {3}.</value>
+  </data>
+  <data name="Issue_Title_NoStructural" xml:space="preserve">
+    <value>{0} in {1} has no matching element in {2}.</value>
+  </data>
+  <data name="Issue_Title_NoArchitectural" xml:space="preserve">
+    <value>{0} in {1} has no matching element in {2}.</value>
+  </data>
+  <data name="Issue_Title_RoomHeight" xml:space="preserve">
+    <value>{0} in {1} on {2} is outside the configured height range.</value>
+  </data>
+  <data name="Issue_Body_ArSt" xml:space="preserve">
+    <value>Level: {0}. Deviation: {1} mm.</value>
+  </data>
+  <data name="Issue_Body_Missing" xml:space="preserve">
+    <value>Level: {0}. The element exists in one discipline only.</value>
+  </data>
+  <data name="Issue_Body_RoomHeight" xml:space="preserve">
+    <value>Level: {0}. Deviation from the allowed range: {1} mm.</value>
+  </data>
+  <data name="Issue_LevelUnknown" xml:space="preserve">
+    <value>Level not specified</value>
+  </data>
+  <data name="Issue_UnknownValue" xml:space="preserve">
+    <value>not specified</value>
+  </data>
+  <data name="Discipline_Architecture" xml:space="preserve">
+    <value>the architectural model</value>
+  </data>
+  <data name="Discipline_Structure" xml:space="preserve">
+    <value>the structural model</value>
+  </data>
+  <data name="Btn_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="P5_ColIssueNumber" xml:space="preserve">
+    <value>Issue</value>
+  </data>
+  <data name="P5_ColIssueNumberTip" xml:space="preserve">
+    <value>Autodesk issue number.</value>
+  </data>
+  <data name="Cat_OST_Walls" xml:space="preserve">
+    <value>Walls</value>
+  </data>
+  <data name="Cat_OST_Floors" xml:space="preserve">
+    <value>Floors</value>
+  </data>
+  <data name="Cat_OST_Roofs" xml:space="preserve">
+    <value>Roofs</value>
+  </data>
+  <data name="Cat_OST_Ceilings" xml:space="preserve">
+    <value>Ceilings</value>
+  </data>
+  <data name="Cat_OST_StructuralColumns" xml:space="preserve">
+    <value>Structural columns</value>
+  </data>
+  <data name="Cat_OST_Columns" xml:space="preserve">
+    <value>Columns</value>
+  </data>
+  <data name="Cat_OST_StructuralFraming" xml:space="preserve">
+    <value>Structural framing</value>
+  </data>
+  <data name="Cat_OST_StructuralFoundation" xml:space="preserve">
+    <value>Structural foundations</value>
+  </data>
+  <data name="Cat_OST_Doors" xml:space="preserve">
+    <value>Doors</value>
+  </data>
+  <data name="Cat_OST_Windows" xml:space="preserve">
+    <value>Windows</value>
+  </data>
+  <data name="Cat_OST_Stairs" xml:space="preserve">
+    <value>Stairs</value>
+  </data>
+  <data name="Cat_OST_Ramps" xml:space="preserve">
+    <value>Ramps</value>
+  </data>
+  <data name="Cat_OST_CurtainWallPanels" xml:space="preserve">
+    <value>Curtain panels</value>
+  </data>
+  <data name="Cat_OST_Rooms" xml:space="preserve">
+    <value>Rooms</value>
+  </data>
+  <data name="Cat_OST_GenericModel" xml:space="preserve">
+    <value>Generic models</value>
+  </data>
+  <data name="Cat_OST_DuctCurves" xml:space="preserve">
+    <value>Ducts</value>
+  </data>
+  <data name="Cat_OST_DuctFitting" xml:space="preserve">
+    <value>Duct fittings</value>
+  </data>
+  <data name="Cat_OST_PipeCurves" xml:space="preserve">
+    <value>Pipes</value>
+  </data>
+  <data name="Cat_OST_PipeFitting" xml:space="preserve">
+    <value>Pipe fittings</value>
+  </data>
+  <data name="Cat_OST_CableTray" xml:space="preserve">
+    <value>Cable trays</value>
+  </data>
+  <data name="Cat_OST_Conduit" xml:space="preserve">
+    <value>Conduits</value>
+  </data>
+  <data name="Cat_OST_MechanicalEquipment" xml:space="preserve">
+    <value>Mechanical equipment</value>
+  </data>
+  <data name="Cat_OST_ElectricalEquipment" xml:space="preserve">
+    <value>Electrical equipment</value>
+  </data>
+  <data name="Cat_OST_PlumbingFixtures" xml:space="preserve">
+    <value>Plumbing fixtures</value>
+  </data>
+  <data name="Cat_OST_Sprinklers" xml:space="preserve">
+    <value>Sprinklers</value>
+  </data>
+  <data name="Cat_OST_StructuralStiffener" xml:space="preserve">
+    <value>Structural stiffeners</value>
+  </data>
+  <data name="Cat_OST_Parts" xml:space="preserve">
+    <value>Parts</value>
+  </data>
+  <data name="Vol_AccPublishing" xml:space="preserve"><value>Publishing BuildAI Publication to ACC. Waiting for the 3D view to become available...</value></data>
+  <data name="Vol_AccReady" xml:space="preserve"><value>BuildAI Publication is ready in ACC. BuildAI can load the published 3D view from ACC.</value></data>
+  <data name="Vol_AccPreparing" xml:space="preserve"><value>Preparing BuildAI Publication and synchronizing the cloud model...</value></data>
+</root>

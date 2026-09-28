@@ -1,0 +1,19 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Bundle Name="BuildAI Revit Plugins" Manufacturer="BuildAI" Version="$(var.BundleVersion)"
+          UpgradeCode="818CB2BF-A964-44A2-A017-E05F7D2EF150" Compressed="yes"
+          IconSourceFile="assets\BuildAI_Setup.ico" HelpUrl="https://app.buildai.me/support">
+    <util:RegistrySearch Id="LegacyHKLMalways32" Variable="LegacyHKLMalways32" Root="HKLM" Bitness="always32" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{8F5D2E10-3C77-4B92-AE0D-9B1C2D3E4F50}_is1" Result="exists" />
+    <util:RegistrySearch Id="LegacyHKLMalways64" Variable="LegacyHKLMalways64" Root="HKLM" Bitness="always64" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{8F5D2E10-3C77-4B92-AE0D-9B1C2D3E4F50}_is1" Result="exists" />
+    <util:RegistrySearch Id="LegacyHKCUalways32" Variable="LegacyHKCUalways32" Root="HKCU" Bitness="always32" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{8F5D2E10-3C77-4B92-AE0D-9B1C2D3E4F50}_is1" Result="exists" />
+    <util:RegistrySearch Id="LegacyHKCUalways64" Variable="LegacyHKCUalways64" Root="HKCU" Bitness="always64" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{8F5D2E10-3C77-4B92-AE0D-9B1C2D3E4F50}_is1" Result="exists" />
+    <bal:Condition Condition="WixBundleInstalled OR NOT (LegacyHKLMalways32 OR LegacyHKLMalways64 OR LegacyHKCUalways32 OR LegacyHKCUalways64)" Message="An older BuildAI Inno Setup installation is registered. Uninstall it from Windows Installed apps before installing this MSI-based release. Keep your user settings. Do not run the old uninstaller after installing this release." />
+    <BootstrapperApplication>
+      <bal:WixStandardBootstrapperApplication LicenseUrl="" Theme="hyperlinkLicense"
+          LogoFile="assets\BuildAI.png" SuppressOptionsUI="yes" />
+    </BootstrapperApplication>
+    <!-- Compressed=yes selects Burn's default attached container. -->
+    <Chain>
+      <MsiPackage Id="BuildAIMain" SourceFile="$(var.MsiPath)" Compressed="yes" Vital="yes" />
+    </Chain>
+  </Bundle>
+</Wix>

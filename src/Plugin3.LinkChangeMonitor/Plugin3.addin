@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BuildAI release 7.3.3 -->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>BuildAI - Link Change Monitor</Name>
+    <Assembly>BuildAI.Plugin3.LinkChangeMonitor.dll</Assembly>
+    <AddInId>5B9E3C42-7D8A-4F2C-9E33-2C3D4E5F6073</AddInId>
+    <FullClassName>Plugin3.LinkChangeMonitor.Revit.Application</FullClassName>
+    <VendorId>BUILDAI</VendorId>
+    <VendorDescription>BuildAI, https://app.buildai.me</VendorDescription>
+  </AddIn>
+</RevitAddIns>

@@ -1,0 +1,73 @@
+// Plugin 2 — Volume Estimator output.
+// Sent as ONE POST; {model_id} in the URL is the project's ProjectId.
+//
+//   POST https://app.buildai.me/api/revit_elems/9c1e77aa-2b34-4c56-8d90-11223344abcd-00012f80
+//   Authorization: Bearer <your_token>
+//   Content-Type: application/json
+//
+// Body: a flat JSON array, one row per (category + material + class + level +
+// section) group, ordered by descending volume. area_m2 is null where it does
+// not apply. This file uses // comments for readability only — the real request
+// body is pure JSON with no comments.
+[
+  {
+    "category": "Structural Foundations",
+    "material_name": "Concrete B30",
+    "material_class": "Concrete",
+    "level": "Level 00",
+    "volume_m3": 212.4,
+    "area_m2": null,
+    "count": 18,
+    "section": "ST"
+  },
+  {
+    "category": "Structural Columns",
+    "material_name": "Concrete B50",
+    "material_class": "Concrete",
+    "level": "Level 03",
+    "volume_m3": 44.9,
+    "area_m2": null,
+    "count": 26,
+    "section": "ST"
+  },
+  {
+    "category": "Floors",
+    "material_name": "Concrete B25",
+    "material_class": "Concrete",
+    "level": "Level 03",
+    "volume_m3": 38.15,
+    "area_m2": 190.7,
+    "count": 4,
+    "section": "ST"
+  },
+  {
+    "category": "Walls",
+    "material_name": "Ceramic brick",
+    "material_class": "Masonry",
+    "level": "Level 03",
+    "volume_m3": 9.86,
+    "area_m2": 82.1,
+    "count": 12,
+    "section": "AR"
+  },
+  {
+    "category": "Structural Framing",
+    "material_name": "Steel S245",
+    "material_class": "Metal",
+    "level": "Level 03",
+    "volume_m3": 3.72,
+    "area_m2": null,
+    "count": 41,
+    "section": "ST"
+  },
+  {
+    "category": "Ducts",
+    "material_name": "",
+    "material_class": "",
+    "level": "Level 03",
+    "volume_m3": 0.0,
+    "area_m2": null,
+    "count": 57,
+    "section": "MEP"
+  }
+]

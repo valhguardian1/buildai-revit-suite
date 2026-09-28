@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><UseWPF>true</UseWPF><AssemblyName>BuildAI.AccIssueReturn.Revit</AssemblyName><RootNamespace>BuildAI.AccIssueReturn.Revit</RootNamespace><CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies></PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)'=='net8.0-windows'"><GenerateDependencyFile>true</GenerateDependencyFile></PropertyGroup>
+  <ItemGroup><ProjectReference Include="..\BuildAI.AccIssueReturn.Core\BuildAI.AccIssueReturn.Core.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" ExcludeAssets="runtime" /><PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" ExcludeAssets="runtime" /></ItemGroup>
+  <ItemGroup Condition="$(TargetFramework)=='net48'"><Reference Include="System.Net.Http" /><Reference Include="Microsoft.CSharp" /></ItemGroup>
+  <ItemGroup><None Include="BuildAI.AccIssueReturn.addin" CopyToOutputDirectory="PreserveNewest" /><EmbeddedResource Include="Resources\BuildAI.png" /><EmbeddedResource Include="Resources\syncback16.png" /><EmbeddedResource Include="Resources\syncback32.png" /><EmbeddedResource Include="Resources\settings16.png" /><EmbeddedResource Include="Resources\settings32.png" /></ItemGroup>
+</Project>

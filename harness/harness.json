@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "buildScript": "build.ps1",
+  "summaryPath": ".harness/build-summary.json",
+  "workRoot": ".harness/work",
+  "releaseRoot": "artifacts/release",
+  "versionFiles": [
+    "Directory.Build.props",
+    "src/BuildAI.Core/BuildAI.Core.csproj",
+    "src/BuildAI.Core/BuildInfo.cs",
+    "installer/BuildAI.RevitSuite.wxs",
+    "build.ps1",
+    "README.md",
+    "ITERATION.txt",
+    "installer/BuildAI.iss"
+  ],
+  "protectedFiles": [
+    "src/BuildAI.Core/APS/ApsPublicationClient.cs",
+    "src/BuildAI.Core/APS/ApsObjectResolver.cs",
+    "src/BuildAI.Core/Issues/PushpinFrame.cs",
+    "src/Plugin4.LinkComparatorAI/Issues/ComparatorIssueWorkflow.cs",
+    "src/Plugin4.LinkComparatorAI/Revit/ComparatorActionHandler.cs",
+    "src/Plugin5.ClashFormaIntegration/Issues/ClashIssueWorkflow.cs",
+    "src/Plugin5.ClashFormaIntegration/Publishing/ApsPublisher.cs",
+    "src/Plugin5.ClashFormaIntegration/Revit/ModelActionHandler.cs",
+    "src/ViewerProbe.Shared/viewer-probe.html",
+    "src/ViewerProbe.Shared/buildai-anchor-probe.js",
+    "tools/Test-NativeApsPublication.ps1",
+    "tools/Test-ApsViewableIdentity.ps1",
+    "tools/Test-ApsObjectIdentity.ps1",
+    "tools/Test-ViewerCoordinateProbe.ps1",
+    "tools/Test-AnchorProbe.ps1",
+    "tools/Test-CameraFocusContract.ps1",
+    "tools/Test-IssueNavigator.ps1",
+    "tools/Test-SurfaceAwareArStPushpins.ps1",
+    "tools/Test-HighlightAndCompactLlmLog.ps1",
+    "tools/Test-Version7_0_21.ps1",
+    "tools/Test-Version7_1_0.ps1"
+  ]
+}

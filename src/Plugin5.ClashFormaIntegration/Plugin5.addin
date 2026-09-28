@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BuildAI release 7.3.3 -->
+<RevitAddIns><AddIn Type="Application"><Name>BuildAI - Clash + Forma Integration</Name><Assembly>BuildAI.Plugin5.ClashFormaIntegration.dll</Assembly><AddInId>7DB15E64-9FAC-414E-B055-4E5F607192A5</AddInId><FullClassName>Plugin5.ClashFormaIntegration.Revit.Application</FullClassName><VendorId>BUILDAI</VendorId><VendorDescription>BuildAI</VendorDescription></AddIn></RevitAddIns>

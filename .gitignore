@@ -1,0 +1,60 @@
+# Generated builds, installers and local harness tools/results
+**/bin/
+**/obj/
+/.harness/
+/artifacts/
+/installer/payload/
+/installer/output/
+/.worktrees/
+
+# IDE and machine-local settings
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
+
+# Credentials and local configuration (keep documented examples)
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pfx
+*.p12
+*.key
+*.pem
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
+!appsettings.*.example.json
+NuGet.Config.local
+
+# Local diagnostics
+*.log
+*.binlog
+*.dmp
+
+# Generated content in either solution and release snapshots
+**/.harness/
+**/.wix/
+**/installer/output/
+**/installer/payload/
+**/installer/verification/
+**/artifacts/
+/VerificationBinaries/
+/BuildAI_Release_Source_*/
+/SHA256SUMS.txt
+/RELEASE_MANIFEST.txt
+node_modules/
+__pycache__/
+*.msi
+*.exe
+*.dll
+*.pdb
+*.cab
+*.zip
+*.tmp
+*.bak

@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildAI.AccIssueReturn.Core", "src\BuildAI.AccIssueReturn.Core\BuildAI.AccIssueReturn.Core.csproj", "{A1C1A001-0001-4B11-9C21-100000000001}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildAI.AccIssueReturn.Revit", "src\BuildAI.AccIssueReturn.Revit\BuildAI.AccIssueReturn.Revit.csproj", "{A1C1A001-0002-4B11-9C21-100000000002}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildAI.AccIssueReturn.Tests", "tests\BuildAI.AccIssueReturn.Tests\BuildAI.AccIssueReturn.Tests.csproj", "{A1C1A001-0003-4B11-9C21-100000000003}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug R23|Any CPU = Debug R23|Any CPU
+		Debug R24|Any CPU = Debug R24|Any CPU
+		Debug R25|Any CPU = Debug R25|Any CPU
+		Debug R26|Any CPU = Debug R26|Any CPU
+		Release R23|Any CPU = Release R23|Any CPU
+		Release R24|Any CPU = Release R24|Any CPU
+		Release R25|Any CPU = Release R25|Any CPU
+		Release R26|Any CPU = Release R26|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1C1A001-0001-4B11-9C21-100000000001}.Debug R23|Any CPU.ActiveCfg = Debug R23
+		{A1C1A001-0001-4B11-9C21-100000000001}.Debug R24|Any CPU.ActiveCfg = Debug R24
+		{A1C1A001-0001-4B11-9C21-100000000001}.Debug R25|Any CPU.ActiveCfg = Debug R25
+		{A1C1A001-0001-4B11-9C21-100000000001}.Debug R26|Any CPU.ActiveCfg = Debug R26
+		{A1C1A001-0001-4B11-9C21-100000000001}.Release R23|Any CPU.ActiveCfg = Release R23
+		{A1C1A001-0001-4B11-9C21-100000000001}.Release R24|Any CPU.ActiveCfg = Release R24
+		{A1C1A001-0001-4B11-9C21-100000000001}.Release R25|Any CPU.ActiveCfg = Release R25
+		{A1C1A001-0001-4B11-9C21-100000000001}.Release R26|Any CPU.ActiveCfg = Release R26
+		{A1C1A001-0002-4B11-9C21-100000000002}.Debug R23|Any CPU.ActiveCfg = Debug R23
+		{A1C1A001-0002-4B11-9C21-100000000002}.Debug R24|Any CPU.ActiveCfg = Debug R24
+		{A1C1A001-0002-4B11-9C21-100000000002}.Debug R25|Any CPU.ActiveCfg = Debug R25
+		{A1C1A001-0002-4B11-9C21-100000000002}.Debug R26|Any CPU.ActiveCfg = Debug R26
+		{A1C1A001-0002-4B11-9C21-100000000002}.Release R23|Any CPU.ActiveCfg = Release R23
+		{A1C1A001-0002-4B11-9C21-100000000002}.Release R24|Any CPU.ActiveCfg = Release R24
+		{A1C1A001-0002-4B11-9C21-100000000002}.Release R25|Any CPU.ActiveCfg = Release R25
+		{A1C1A001-0002-4B11-9C21-100000000002}.Release R26|Any CPU.ActiveCfg = Release R26
+		{A1C1A001-0003-4B11-9C21-100000000003}.Debug R23|Any CPU.ActiveCfg = Debug R23
+		{A1C1A001-0003-4B11-9C21-100000000003}.Debug R24|Any CPU.ActiveCfg = Debug R24
+		{A1C1A001-0003-4B11-9C21-100000000003}.Debug R25|Any CPU.ActiveCfg = Debug R25
+		{A1C1A001-0003-4B11-9C21-100000000003}.Debug R26|Any CPU.ActiveCfg = Debug R26
+		{A1C1A001-0003-4B11-9C21-100000000003}.Release R23|Any CPU.ActiveCfg = Release R23
+		{A1C1A001-0003-4B11-9C21-100000000003}.Release R24|Any CPU.ActiveCfg = Release R24
+		{A1C1A001-0003-4B11-9C21-100000000003}.Release R25|Any CPU.ActiveCfg = Release R25
+		{A1C1A001-0003-4B11-9C21-100000000003}.Release R26|Any CPU.ActiveCfg = Release R26
+	EndGlobalSection
+EndGlobal

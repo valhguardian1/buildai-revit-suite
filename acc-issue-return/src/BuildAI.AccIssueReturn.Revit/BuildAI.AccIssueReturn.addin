@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>BuildAI ACC Issue Return</Name>
+    <Assembly>BuildAI.AccIssueReturn.Revit.dll</Assembly>
+    <AddInId>8C5C0D1A-9A8B-4F43-93F2-1D33F4C8A401</AddInId>
+    <FullClassName>BuildAI.AccIssueReturn.Revit.Application</FullClassName>
+    <VendorId>BUILDAI</VendorId>
+    <VendorDescription>BuildAI ACC Issue Return, https://app.buildai.me</VendorDescription>
+  </AddIn>
+</RevitAddIns>

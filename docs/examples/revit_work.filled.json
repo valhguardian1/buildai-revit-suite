@@ -1,0 +1,14 @@
+{
+  "ItemName": "Basic Wall - Interior 120mm",
+  "ItemUniqueId": "a7c3e1b0-9d2f-4e88-b6a1-3f5c7d9e0142-0007a3f1",
+  "ProjectId": "9c1e77aa-2b34-4c56-8d90-11223344abcd-00012f80",
+  "ItemCategory": "Walls",
+  "ProjectTitle": "TowerA_ARCH_R24",
+  "ProjectBuildingName": "Tower A",
+  "ProjectName": "Riverside Complex",
+  "ProjectNumber": "2026-014",
+  "Method": "add_element",
+  "Level": "Level 03",
+  "Time": "2026-06-29T05:12:44Z",
+  "Username": "d.ivanov@studio.example"
+}

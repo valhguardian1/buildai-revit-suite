@@ -1,0 +1,16 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="BuildAI ACC Issue Return" Manufacturer="BuildAI" Version="1.1" UpgradeCode="B4E3C2F1-6A14-4DA9-9A41-2D6D2D0FCA72" Scope="perMachine">
+    <MajorUpgrade AllowSameVersionUpgrades="yes" Schedule="afterInstallExecute" DowngradeErrorMessage="A newer BuildAI ACC Issue Return version is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Icon Id="BuildAIIcon" SourceFile="assets\BuildAI.ico" />
+    <Property Id="ARPPRODUCTICON" Value="BuildAIIcon" />
+    <StandardDirectory Id="CommonAppDataFolder"><Directory Id="Autodesk" Name="Autodesk"><Directory Id="Revit" Name="Revit"><Directory Id="Addins" Name="Addins"><Directory Id="R23" Name="2023"/><Directory Id="R24" Name="2024"/><Directory Id="R25" Name="2025"/><Directory Id="R26" Name="2026"/></Directory></Directory></Directory></StandardDirectory>
+    <Feature Id="All" Title="BuildAI ACC Issue Return" Level="1" Display="hidden">
+      <ComponentGroupRef Id="Return2023"/><ComponentGroupRef Id="Return2024"/><ComponentGroupRef Id="Return2025"/><ComponentGroupRef Id="Return2026"/>
+    </Feature>
+  </Package>
+  <Fragment><ComponentGroup Id="Return2023" Directory="R23"><Files Include="payload\2023\**"/></ComponentGroup><ComponentGroup Id="Return2024" Directory="R24"><Files Include="payload\2024\**"/></ComponentGroup><ComponentGroup Id="Return2025" Directory="R25"><Files Include="payload\2025\**"/></ComponentGroup><ComponentGroup Id="Return2026" Directory="R26"><Files Include="payload\2026\**"/></ComponentGroup></Fragment>
+</Wix>
+
+
+

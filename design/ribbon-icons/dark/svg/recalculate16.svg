@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-linecap="square" stroke-linejoin="miter">
+<g stroke="#2B2F36">
+<path d="M1.5 3.5 A4.5 2 0 0 1 10.5 3.5 A4.5 2 0 0 1 1.5 3.5 Z" stroke-width="3"/>
+<path d="M1.5 3.5 V11.5 A4.5 2 0 0 0 6 13.5" stroke-width="3"/>
+<path d="M10.5 3.5 V6.5" stroke-width="3"/>
+</g>
+<path d="M1.5 3.5 A4.5 2 0 0 1 10.5 3.5 A4.5 2 0 0 1 1.5 3.5 Z" stroke="#FFFFFF" stroke-width="1"/>
+<path d="M1.5 3.5 V11.5 A4.5 2 0 0 0 6 13.5" stroke="#FFFFFF" stroke-width="1"/>
+<path d="M10.5 3.5 V6.5" stroke="#FFFFFF" stroke-width="1"/>
+<g stroke="#2B2F36">
+<rect x="8" y="8" width="7" height="7" rx="2" fill="#2B2F36" stroke-width="2"/>
+</g>
+<rect x="8" y="8" width="7" height="7" rx="2" fill="#3186F6"/>
+<rect x="10" y="9" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="11" y="9" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="13" y="9" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="9" y="10" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="12" y="10" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="13" y="10" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="9" y="11" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="9" y="12" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="13" y="12" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="10" y="13" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="11" y="13" width="1" height="1" rx="0" fill="#FFFFFF"/>
+<rect x="12" y="13" width="1" height="1" rx="0" fill="#FFFFFF"/>
+</svg>

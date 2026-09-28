@@ -1,0 +1,58 @@
+{
+  "files": {
+    "src/BuildAI.Core/APS/ApsIssueEnvironment.cs": "f2516d655b46657eab52b0893c966e89a625e2892ea6330fa94bab2cf2cfd0d8",
+    "src/BuildAI.Core/APS/ApsObjectResolver.cs": "958b2b65221447fcf3995d32816ac866dceb1e8d23013543f1077544be807540",
+    "src/BuildAI.Core/APS/ApsPublicationClient.cs": "89ea7deaedfea13d050c8e840e3740199d9ca1a6665935dfa4d11dc85fe51c47",
+    "src/BuildAI.Core/APS/ApsPublishSetException.cs": "9af7aabc3c2361a83c5adf4717396bd9d0125e48167625a0222f5472d284313b",
+    "src/BuildAI.Core/Issues/ArStIssuePayloadAdapter.cs": "f4829eaeecf9e266697138ddc3761d520026e8e7c71eededea1607a29778bc97",
+    "src/BuildAI.Core/Issues/IssueIntegrationClient.cs": "109f3fac6c23f596075c46e27ba3d14c6d8c8f6fa341e13e2781ddef52868ab1",
+    "src/BuildAI.Core/Issues/PushpinFrame.cs": "f0fc90c7e17a35ccba884610d2d09cbc6d20e4cd05cf6a90c509642599202f13",
+    "src/Plugin2.VolumeEstimator/Publishing/BuildAiPublicationClient.cs": "8d9a0d01783bac7eda7428f9829460326ffd67e8a775b5feabf7d002f0f9e4ba",
+    "src/Plugin2.VolumeEstimator/Publishing/PublicationFlow.cs": "df04b97fa67d5351db403ab21001fd9bc31ddf9cf6b6bc946bcea508a8b22ced",
+    "src/Plugin2.VolumeEstimator/Publishing/RevitPublishResponse.cs": "8cb1a4987021dc867b8437a47466b121126af25315764079d47826fcde4b46a8",
+    "src/Plugin4.LinkComparatorAI/Plugin4.addin": "715e24fbdea8d053957dfc9e83f636795d03dd41626cbfd41d364f0d33a76daa",
+    "src/Plugin4.LinkComparatorAI/AI/AiConnector.cs": "fbf43299e2737fc135d5fa4134db85bf6e0b0b3b10954cd4f67b8bea53c15de4",
+    "src/Plugin4.LinkComparatorAI/Comparison/ComparatorEngine.cs": "1d44c94e3f984e2d7de648215be480efc71a300e28e7a7d0b78a50d196800232",
+    "src/Plugin4.LinkComparatorAI/Comparison/ElementProxy.cs": "095c65c8e6a2d4977d6367640a03b3c70c403df385f6cb21abbce14a15487e45",
+    "src/Plugin4.LinkComparatorAI/Comparison/GeometryUtil.cs": "e9ff56d661a443e8f8c04addbd68b610a835a40f1cf930241a1f4da383f28c6c",
+    "src/Plugin4.LinkComparatorAI/Comparison/LinkRefreshService.cs": "def793d7d610c95710224e22f0e8a30165e5eb8d9ac95fe0abeb284456165882",
+    "src/Plugin4.LinkComparatorAI/Comparison/LinkResolver.cs": "6aeafd40cce8396dae835ffac780dfb8e5651b8c4bb99739b456e4f64d66b3f2",
+    "src/Plugin4.LinkComparatorAI/Export/ReportExporter.cs": "2ebfa18b7976e606cfa4a20dce6f93f8f58f447b1ddc51a6d6c1e41ac04a5e2c",
+    "src/Plugin4.LinkComparatorAI/Issues/ArStProbeDerivativeGuard.cs": "7dcce2cccdac50b630745a992f57ed8c5afcf6f01c3301331f2854c5d92cd313",
+    "src/Plugin4.LinkComparatorAI/Issues/ComparatorIssueWorkflow.cs": "3c19c37e7fd3c284c6a1c84556cf12e47a2f98a626d29a5f17ea6c4baf210a6b",
+    "src/Plugin4.LinkComparatorAI/Issues/IssueTextLocalizer.cs": "7142c64487eae8a18d4a47b7693c151b490944536f7d31c5e3390d2462f9321d",
+    "src/Plugin4.LinkComparatorAI/Models/ComparatorSettings.cs": "379a53e8682d354d585aeb608c83bd1acad9a941d4fd73a067c497d872efe919",
+    "src/Plugin4.LinkComparatorAI/Models/ComparisonIssue.cs": "e0bdb5c76b000fca385b2a27f558fcbfd97c39f65bdde7d71e085a478ba7b7e7",
+    "src/Plugin4.LinkComparatorAI/Models/ComparisonReport.cs": "33e35294fe693d5e66dd881a2616f5cc16c9bc5de548561ff37e43e8a898d9cf",
+    "src/Plugin4.LinkComparatorAI/Revit/Application.cs": "0e9d63cf2eeb7d9609caa215f4c20f03bb15019baea4ead46f0fe425020bc162",
+    "src/Plugin4.LinkComparatorAI/Revit/Commands.cs": "194aba11f3578145ab8acf354d14bfcaec8722eaabadc32c1b1fdf17620a9b84",
+    "src/Plugin4.LinkComparatorAI/Revit/ComparatorActionHandler.cs": "467031816a1fbbfd9bc5686a64e475a1a173fa4599c14a1cdb663828db2c980b",
+    "src/Plugin4.LinkComparatorAI/Revit/EmbeddedIconData.cs": "c2a4e5e14de47a172c6dd64f9df152af6587fee43dad43ed94d67e6fd65961af",
+    "src/Plugin4.LinkComparatorAI/Revit/PluginContext.cs": "b2182062b4013295866fbeaf8de69738c8df5aa6aae006d11ef89e3e3396dc6d",
+    "src/Plugin4.LinkComparatorAI/Revit/PublishViewPreparationResult.cs": "f8e5dd54d583851c7ab802882b1cc1a45291f994522838e4ef5e815136c0a551",
+    "src/Plugin4.LinkComparatorAI/Revit/RibbonIconLoader.cs": "4849c6d806dd20879796bfafe64dc50320179563a5bca87cb9082aa62293ebb5",
+    "src/Plugin4.LinkComparatorAI/UI/ResultsWindow.cs": "9698c73b9afe67811731d4138347d39f498a384cbdc438edfe266ef12dd874b5",
+    "src/Plugin4.LinkComparatorAI/UI/SettingsWindow.cs": "715cbc4cf3a79a39bc12061092c59509020ae24ab5ad79ca11579a7fbbff459a",
+    "src/Plugin5.ClashFormaIntegration/Publishing/ApsPublisher.cs": "49cdeef1cbc73e334c68b5484a501caf87b32b12e0786ca1892e3ed034e35cec",
+    "src/Plugin5.ClashFormaIntegration/Publishing/BuildAiPublicationClient.cs": "68556937722855388764fd219f09949871582698b7026a93fdb3c3a07acd93f3",
+    "src/ViewerProbe.Shared/buildai-anchor-probe.js": "e45c03a471c0b9ca35b7dccc97d006e7b26ec3c9ba3c29bc43fbb6fb929c98e1"
+  },
+  "viewerSections": [
+    {
+      "start": "  function pointsMatch(",
+      "end": "  function matrixElements(",
+      "sha256": "9e7c045371d01d145670355eec6f392e76f8b27e3800bb956cb40f5a69bbc39a"
+    },
+    {
+      "start": "  function modelPointToViewer(",
+      "end": "  async function resolveLoadedProbe(",
+      "sha256": "adb523aae7d069cfbb95fa1a7b6f16045afd5fd2d02d72a59f895eeab73f0b0e"
+    },
+    {
+      "start": "    // Select the resolved object in the actual Viewer scene",
+      "end": "  async function runProbe(request)",
+      "sha256": "d4412a868c3304705df0e281268f916601f9cc16fd057fea5fa34543a12f3fa4"
+    }
+  ],
+  "localNavigationTailSha256": "17af121748727f9fee963464477cb7a71924521e48a7848d2d67e996bd1657fb"
+}

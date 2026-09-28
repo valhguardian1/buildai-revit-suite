@@ -1,0 +1,97 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="BuildAI Revit Plugins"
+           Manufacturer="BuildAI"
+           Version="7.4"
+           UpgradeCode="D20A75E8-CA27-4CD9-9713-4E9EC61EB001"
+           Scope="perMachine">
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer BuildAI Revit Plugins version is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Property Id="ARPURLINFOABOUT" Value="https://app.buildai.me/" />
+    <Property Id="ARPCONTACT" Value="BuildAI" />
+    <Icon Id="BuildAIIcon" SourceFile="assets\BuildAI.ico" />
+    <Property Id="ARPPRODUCTICON" Value="BuildAIIcon" />
+
+    <!--
+      DIAGNOSTIC ONLY - these searches no longer gate installation.
+
+      They previously drove Feature levels, and that is why earlier builds
+      installed nothing at all: the searches look for an InstallationLocation
+      value directly under SOFTWARE\Autodesk\Revit\Autodesk Revit <year>, but
+      Revit stores that value one level deeper, inside a product subkey such as
+      REVIT-05:0409. The search therefore returned empty on every machine, the
+      property stayed unset, the Level condition evaluated false, and all four
+      features remained at Level 0. An MSI whose features are all level 0
+      installs successfully and copies nothing.
+
+      The properties are kept because they are written to the MSI log and let
+      support see which Revit versions were present at install time.
+    -->
+    <Property Id="REVIT2023INSTALLED">
+      <RegistrySearch Id="FindRevit2023" Root="HKLM" Key="SOFTWARE\Autodesk\Revit\2023" Name="InstallationLocation" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="REVIT2024INSTALLED">
+      <RegistrySearch Id="FindRevit2024" Root="HKLM" Key="SOFTWARE\Autodesk\Revit\2024" Name="InstallationLocation" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="REVIT2025INSTALLED">
+      <RegistrySearch Id="FindRevit2025" Root="HKLM" Key="SOFTWARE\Autodesk\Revit\2025" Name="InstallationLocation" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="REVIT2026INSTALLED">
+      <RegistrySearch Id="FindRevit2026" Root="HKLM" Key="SOFTWARE\Autodesk\Revit\2026" Name="InstallationLocation" Type="raw" Bitness="always64" />
+    </Property>
+
+    <!--
+      Safe installer mode:
+      - Registered older MSI versions are removed by MajorUpgrade.
+      - No executable custom actions run during installation.
+      - The standalone BuildAI_Full_Cleanup.exe remains available in installer\output
+        for testers who need to remove legacy, manually copied, or damaged builds.
+
+      This avoids generic Windows Installer failures caused by blocked, missing,
+      or non-zero-exit cleanup helpers.
+    -->
+
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="AutodeskFolder" Name="Autodesk">
+        <Directory Id="RevitFolder" Name="Revit">
+          <Directory Id="AddinsFolder" Name="Addins">
+            <Directory Id="R23" Name="2023" />
+            <Directory Id="R24" Name="2024" />
+            <Directory Id="R25" Name="2025" />
+            <Directory Id="R26" Name="2026" />
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <!--
+      Each payload is harvested into the Revit version root. The .addin files
+      and their DLLs are intentionally side by side, so every manifest can use
+      a simple relative Assembly path such as:
+        <Assembly>BuildAI.Plugin3.LinkChangeMonitor.dll</Assembly>
+    -->
+    <!--
+      Every feature installs unconditionally.
+
+      Revit reads add-in manifests only from its own year folder under
+      %ProgramData%\Autodesk\Revit\Addins\<year>, so writing a folder for a
+      Revit version that is not present is inert: those files are never loaded.
+      Gating on registry detection traded that harmless cost for a silent
+      total failure, which is a far worse trade. Detection stays out of the
+      install decision.
+    -->
+    <Feature Id="Revit2023" Title="BuildAI for Revit 2023" Level="1" Display="hidden" AllowAbsent="no">
+      <Files Include="payload\2023\**" Directory="R23" />
+    </Feature>
+    <Feature Id="Revit2024" Title="BuildAI for Revit 2024" Level="1" Display="hidden" AllowAbsent="no">
+      <Files Include="payload\2024\**" Directory="R24" />
+    </Feature>
+    <Feature Id="Revit2025" Title="BuildAI for Revit 2025" Level="1" Display="hidden" AllowAbsent="no">
+      <Files Include="payload\2025\**" Directory="R25" />
+    </Feature>
+    <Feature Id="Revit2026" Title="BuildAI for Revit 2026" Level="1" Display="hidden" AllowAbsent="no">
+      <Files Include="payload\2026\**" Directory="R26" />
+    </Feature>
+  </Package>
+</Wix>

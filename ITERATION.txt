@@ -1,0 +1,1 @@
+7.4 - Support link, AR-ST settings confirmation, and installer icons

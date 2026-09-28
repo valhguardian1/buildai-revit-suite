@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>netstandard2.0</TargetFramework><RootNamespace>BuildAI.AccIssueReturn.Core</RootNamespace><AssemblyName>BuildAI.AccIssueReturn.Core</AssemblyName></PropertyGroup>
+  <ItemGroup><PackageReference Include="Newtonsoft.Json" Version="13.0.3" /></ItemGroup>
+</Project>

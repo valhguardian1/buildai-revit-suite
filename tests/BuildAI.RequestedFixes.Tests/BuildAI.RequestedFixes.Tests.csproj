@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <Compile Include="..\..\src\BuildAI.Core\Issues\ChangeCalculationModePolicy.cs" Link="ChangeCalculationModePolicy.cs" />
+    <Compile Include="..\..\src\BuildAI.Core\Issues\IssueLocationDetailsResolver.cs" Link="IssueLocationDetailsResolver.cs" />
+    <Compile Include="..\..\src\BuildAI.Core\Issues\ExistingIssueMergeService.cs" Link="ExistingIssueMergeService.cs" />
+    <Compile Include="..\..\src\BuildAI.Core\Issues\ArStPushpinGeometry.cs" Link="ArStPushpinGeometry.cs" />
+    <Compile Include="..\..\src\Plugin4.LinkComparatorAI\Issues\ArStProbeDerivativeGuard.cs" Link="ArStProbeDerivativeGuard.cs" />
+    <Compile Include="..\..\src\BuildAI.Core\Presentation\SummaryLines.cs" Link="SummaryLines.cs" />
+    <Compile Include="..\..\src\BuildAI.Core\Presentation\TableExport.cs" Link="TableExport.cs" />
+    <Compile Include="..\..\src\BuildAI.Core\Presentation\SettingsRibbonPolicy.cs" Link="SettingsRibbonPolicy.cs" />
+  </ItemGroup>
+</Project>

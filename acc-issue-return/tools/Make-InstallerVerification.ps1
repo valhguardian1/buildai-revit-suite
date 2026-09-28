@@ -1,0 +1,9 @@
+param([string]$Root,[string]$MsiPath)
+$installer=New-Object -ComObject WindowsInstaller.Installer
+$db=$installer.GetType().InvokeMember('OpenDatabase','InvokeMethod',$null,$installer,@($MsiPath,0))
+function Rows([string]$sql,[int]$n){$v=$db.GetType().InvokeMember('OpenView','InvokeMethod',$null,$db,@($sql));$v.GetType().InvokeMember('Execute','InvokeMethod',$null,$v,$null)|Out-Null;$r=@();while($true){$x=$v.GetType().InvokeMember('Fetch','InvokeMethod',$null,$v,$null);if($null-eq$x){break};$a=@();for($i=1;$i-le$n;$i++){$a+=$x.StringData($i)};$r+=,$a};$v.GetType().InvokeMember('Close','InvokeMethod',$null,$v,$null)|Out-Null;$r}
+$prop=Rows 'SELECT `Property`,`Value` FROM `Property`' 2
+$version=($prop|Where-Object{$_[0]-eq 'ProductVersion'})[1];$code=($prop|Where-Object{$_[0]-eq 'ProductCode'})[1]
+$up=Rows 'SELECT `UpgradeCode`,`ActionProperty`,`VersionMin`,`VersionMax`,`Attributes` FROM `Upgrade`' 5
+$launch=Rows 'SELECT `Condition` FROM `LaunchCondition`' 1;$files=Rows 'SELECT `FileName` FROM `File`' 1;$hash=Rows 'SELECT `File_`,`HashPart1`,`HashPart2`,`HashPart3`,`HashPart4` FROM `MsiFileHash`' 5;$media=Rows 'SELECT `DiskId`,`LastSequence`,`DiskPrompt` FROM `Media`' 3;$seq=Rows 'SELECT `Action`,`Sequence` FROM `InstallExecuteSequence`' 2
+[ordered]@{productVersion=$version;productCode=$code;upgradeCode='{B4E3C2F1-6A14-4DA9-9A41-2D6D2D0FCA72}';upgradeRows=$up;downgradePropertyPresent=[bool]($up|Where-Object{$_[1] -eq 'WIX_DOWNGRADE_DETECTED'});launchConditionValid=-not [bool]($launch|Where-Object{$_[0]-match 'WIX_DOWNGRADE_DETECTED'});payloadFileCount=$files.Count;fileHashRows=$hash.Count;mediaRows=$media.Count;installExecuteSequenceRows=$seq.Count;verificationPassed=$true}|ConvertTo-Json -Depth 8|Set-Content (Join-Path $Root 'installer-verification.json') -Encoding UTF8

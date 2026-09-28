@@ -1,0 +1,17 @@
+{
+  "BaseUrl": "https://app.buildai.me",
+  "WorkPath": "/api/revit_work/",
+  "MaterialsPath": "/api/revit_elems/{model_id}",
+  "Language": "he",
+  "IdleTimeoutMinutes": 5,
+  "HeartbeatSeconds": 30,
+
+  "IncludeLinkedModels": true,
+  "SectionParameterName": "",
+  "VolumeAutoCalcOnSync": false,
+  "DisciplineOverrides": {
+    "TowerA_ARCH": "AR",
+    "TowerA_STRUCT": "ST",
+    "TowerA_MEP": "MEP"
+  }
+}

@@ -1,0 +1,1 @@
+using System; using Newtonsoft.Json; Console.WriteLine(JsonConvert.SerializeObject(new { probe="ok" }));

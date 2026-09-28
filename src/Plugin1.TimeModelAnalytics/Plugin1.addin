@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- BuildAI release 7.3.3 -->
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>BuildAI - Time &amp; Model Analytics</Name>
+    <!-- Path is resolved relative to this .addin file's folder. -->
+    <Assembly>BuildAI.Plugin1.TimeModelAnalytics.dll</Assembly>
+    <AddInId>3F9C1A20-7B5E-4D2A-9C11-0A1B2C3D4E51</AddInId>
+    <FullClassName>Plugin1.TimeModelAnalytics.Revit.Application</FullClassName>
+    <VendorId>BUILDAI</VendorId>
+    <VendorDescription>BuildAI, https://app.buildai.me</VendorDescription>
+  </AddIn>
+</RevitAddIns>
